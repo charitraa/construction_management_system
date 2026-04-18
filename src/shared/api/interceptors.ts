@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { BASE_URL } from "../constants/constants";
 
 export const axiosInstance = axios.create({
@@ -20,7 +20,7 @@ export const axiosImageInstance = axios.create({
 // Error handler
 export const handleAxiosError = (error: unknown): never => {
   if (axios.isAxiosError(error)) {
-    const axiosError = error as axios.AxiosError<{
+    const axiosError = error as AxiosError<{
       message?: string;
       status_code?: number;
     }>;
