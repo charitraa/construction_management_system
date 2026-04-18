@@ -1,142 +1,29 @@
-import { type AxiosRequestConfig } from "axios";
-import { axiosImageInstance, axiosInstance, handleAxiosError } from "./interceptors";
+import { axiosInstance } from "./interceptors";
+import { AxiosResponse } from "axios";
 
-export class HttpClient<ResponseType, RequestType = unknown> {
-  endpoint: string;
-
-  constructor(endpoint: string) {
-    this.endpoint = endpoint;
-  }
-
-  getAll = async (
-    config?: AxiosRequestConfig
-  ): Promise<ResponseType[]> => {
-    try {
-      const response = await axiosInstance.get<ResponseType[]>(
-        this.endpoint,
-        config
-      );
-      return response.data;
-    } catch (error) {
-      handleAxiosError(error);
-    }
-  };
-
-  get = async (
-    params?: string,
-    config?: AxiosRequestConfig
-  ): Promise<ResponseType> => {
-    const url = params ? `${this.endpoint}/${params}` : this.endpoint;
-
-    try {
-      const response = await axiosInstance.get<ResponseType>(
-        url,
-        config
-      );
-      return response.data;
-    } catch (error) {
-      handleAxiosError(error);
-    }
-  };
-
-  post = async (
-    data: RequestType,
-    config?: AxiosRequestConfig
-  ): Promise<ResponseType> => {
-    try {
-      const response = await axiosInstance.post<ResponseType>(
-        this.endpoint,
-        data,
-        config
-      );
-      return response.data;
-    } catch (error) {
-      handleAxiosError(error);
-    }
-  };
-
-  put = async (
-    data: RequestType,
-    params?: string,
-    config?: AxiosRequestConfig
-  ): Promise<ResponseType> => {
-    const url = params ? `${this.endpoint}/${params}` : this.endpoint;
-
-    try {
-      const response = await axiosInstance.put<ResponseType>(
-        url,
-        data,
-        config
-      );
-      return response.data;
-    } catch (error) {
-      handleAxiosError(error);
-    }
-  };
-
-  delete = async (
-    params?: string,
-    config?: AxiosRequestConfig
-  ): Promise<ResponseType> => {
-    const url = params ? `${this.endpoint}/${params}` : this.endpoint;
-
-    try {
-      const response = await axiosInstance.delete<ResponseType>(
-        url,
-        config
-      );
-      return response.data;
-    } catch (error) {
-      handleAxiosError(error);
-    }
-  };
-
-  deleteBulk = async (
-    data: RequestType,
-    config?: AxiosRequestConfig
-  ): Promise<ResponseType> => {
-    try {
-      const response = await axiosInstance.post<ResponseType>(
-        this.endpoint,
-        data,
-        config
-      );
-      return response.data;
-    } catch (error) {
-      handleAxiosError(error);
-    }
-  };
-
-  postWithImage = async (
-    data: RequestType,
-    config?: AxiosRequestConfig
-  ): Promise<ResponseType> => {
-    try {
-      const response = await axiosImageInstance.post<ResponseType>(
-        this.endpoint,
-        data,
-        config
-      );
-      return response.data;
-    } catch (error) {
-      handleAxiosError(error);
-    }
-  };
-
-  putWithImage = async (
-    data: RequestType,
-    config?: AxiosRequestConfig
-  ): Promise<ResponseType> => {
-    try {
-      const response = await axiosImageInstance.put<ResponseType>(
-        this.endpoint,
-        data,
-        config
-      );
-      return response.data;
-    } catch (error) {
-      handleAxiosError(error);
-    }
-  };
-
-}
+export const httpClient = {
+  get: async <T>(url: string, config?: any): Promise<T> => {
+    const response: AxiosResponse<T> = await axiosInstance.get(url, config);
+    return response.data;
+  },
+  post: async <T>(url: string, data?: any, config?: any): Promise<T> => {
+    const response: AxiosResponse<T> = await axiosInstance.post(
+      url,
+      data,
+      config,
+    );
+    return response.data;
+  },
+  put: async <T>(url: string, data?: any, config?: any): Promise<T> => {
+    const response: AxiosResponse<T> = await axiosInstance.put(
+      url,
+      data,
+      config,
+    );
+    return response.data;
+  },
+  delete: async <T>(url: string, config?: any): Promise<T> => {
+    const response: AxiosResponse<T> = await axiosInstance.delete(url, config);
+    return response.data;
+  },
+};

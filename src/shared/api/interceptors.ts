@@ -1,4 +1,4 @@
-import axios, { AxiosError } from "axios";
+import axios from "axios";
 import { BASE_URL } from "../constants/constants";
 
 export const axiosInstance = axios.create({
@@ -16,11 +16,11 @@ export const axiosImageInstance = axios.create({
     "Content-Type": "multipart/form-data",
   },
   withCredentials: true,
-})
+});
 // Error handler
 export const handleAxiosError = (error: unknown): never => {
   if (axios.isAxiosError(error)) {
-    const axiosError = error as AxiosError<{
+    const axiosError = error as axios.AxiosError<{
       message?: string;
       status_code?: number;
     }>;
