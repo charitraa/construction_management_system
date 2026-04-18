@@ -205,6 +205,32 @@ pnpm build:client    # Build frontend only
 pnpm build:server    # Build backend only
 ```
 
+### Docker Commands (Makefile)
+
+```bash
+# Quick Docker operations
+make build           # Build production image
+make run            # Run production container
+make dev            # Start development environment
+make prod           # Start production environment
+make full           # Start full stack environment
+make stop           # Stop all containers
+make clean          # Remove all containers and images
+make logs           # Show container logs
+make restart        # Restart services
+make shell          # Open shell in container
+
+# Development helpers
+make install        # Install dependencies
+make test          # Run tests
+make lint          # Run linting
+make typecheck     # Type checking
+
+# Deployment
+make deploy-prod   # Deploy production
+make deploy-dev    # Deploy development
+```
+
 ### Code Style
 
 - **TypeScript** for type safety
@@ -214,25 +240,114 @@ pnpm build:server    # Build backend only
 
 ## 🚀 Deployment
 
-### Production Build
+### Docker Deployment
+
+#### Quick Start with Docker
 
 ```bash
+# Build and run production container
+docker build -t buildcms .
+docker run -p 80:80 buildcms
+```
+
+#### Using Docker Compose
+
+```bash
+# Production deployment (frontend only)
+docker-compose up -d
+
+# Development with hot reload
+docker-compose --profile dev up
+
+# Full stack (frontend + backend + database)
+docker-compose --profile full up
+```
+
+#### Production Deployment
+
+```bash
+# Using production compose file
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+#### Docker Architecture
+
+- **Multi-stage build** - Optimized production images
+- **Nginx serving** - Static file serving with proper caching
+- **SPA routing** - Client-side routing support
+- **Security headers** - Production-ready security configuration
+- **Gzip compression** - Optimized content delivery
+
+#### Docker Files Included
+
+- `Dockerfile` - Multi-stage production build
+- `Dockerfile.dev` - Development with hot reload
+- `docker-compose.yml` - Local development orchestration
+- `docker-compose.prod.yml` - Production deployment
+- `nginx.conf` - Production web server configuration
+- `.dockerignore` - Optimized build context
+
+#### Using Docker Compose
+
+```bash
+# Production deployment
+docker-compose up -d
+
+# Development with hot reload
+docker-compose --profile dev up
+
+# Full stack (frontend + backend + database)
+docker-compose --profile full up
+```
+
+#### Production Deployment
+
+```bash
+# Using production compose file
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+### Traditional Deployment
+
+#### Build Commands
+
+```bash
+# Install dependencies
+pnpm install
+
+# Build for production
 pnpm build
+
+# Type checking
+pnpm typecheck
+
+# Preview production build
+pnpm start
 ```
 
 ### Environment Variables
 
 ```env
+# Backend API Configuration
 VITE_BACKEND_URL=https://your-api-domain.com/api
+
+# Image/File Upload Configuration
 VITE_IMAGE_URL=https://your-cdn-domain.com
+
+# Application Configuration
+VITE_APP_NAME=BuildCMS
+VITE_APP_VERSION=1.0.0
+
+# Development/Production Mode
+NODE_ENV=production
 ```
 
 ### Deployment Options
 
-- **Netlify** - Frontend hosting with serverless functions
-- **Vercel** - Full-stack deployment
-- **Docker** - Containerized deployment
-- **Static Export** - For CDN deployment
+- **🐳 Docker** - Containerized deployment (recommended)
+- **☁️ Netlify** - Frontend hosting with serverless functions
+- **▲ Vercel** - Full-stack deployment
+- **📦 Static Export** - For CDN deployment
 
 ## 🤝 Contributing
 
