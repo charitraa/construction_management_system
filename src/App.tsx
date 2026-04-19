@@ -8,7 +8,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { DataProvider } from "./context/DataContext";
 import { AuthProvider } from "./context/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
-import { Login, SignUp } from "./features/authentication";
+import { Login } from "./features/authentication";
 import Dashboard from "./features/dashboard/pages/Dashboard";
 import Employees from "./features/employees/pages/Employees";
 import Attendance from "./features/attendance/pages/Attendance";
@@ -33,7 +33,6 @@ export function App() {
               <Routes>
                 {/* Public Routes */}
                 <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<SignUp />} />
 
                 {/* Protected Routes */}
                 <Route

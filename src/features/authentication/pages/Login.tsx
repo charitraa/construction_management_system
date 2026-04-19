@@ -92,17 +92,6 @@ export default function Login() {
               {loginMutation.isPending ? "Logging in..." : "Login"}
             </Button>
           </form>
-
-          {/* Footer */}
-          <div className="text-center text-sm text-gray-600">
-            Don't have an account?{" "}
-            <Link
-              to="/signup"
-              className="text-blue-600 hover:text-blue-700 font-semibold"
-            >
-              Sign up here
-            </Link>
-          </div>
         </div>
       </div>
     </div>
