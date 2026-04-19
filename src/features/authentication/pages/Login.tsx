@@ -93,21 +93,6 @@ export default function Login() {
             </Button>
           </form>
 
-          {/* Demo Credentials */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
-            <p className="text-sm font-semibold text-blue-900">
-              Demo Credentials:
-            </p>
-            <div className="space-y-1 text-xs text-blue-700">
-              <p>
-                <strong>Admin:</strong> admin@cms.com / password123
-              </p>
-              <p>
-                <strong>Manager:</strong> manager@cms.com / password123
-              </p>
-            </div>
-          </div>
-
           {/* Footer */}
           <div className="text-center text-sm text-gray-600">
             Don't have an account?{" "}
