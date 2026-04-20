@@ -1,4 +1,4 @@
-import axios, { AxiosError } from "axios";
+import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { BASE_URL } from "../constants/constants";
 
 export const axiosInstance = axios.create({
@@ -9,6 +9,18 @@ export const axiosInstance = axios.create({
   },
   withCredentials: true,
 });
+
+// Auth token interceptor
+axiosInstance.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    const token = localStorage.getItem("access_token");
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error),
+);
 export const axiosImageInstance = axios.create({
   baseURL: BASE_URL,
   headers: {

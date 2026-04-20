@@ -16,13 +16,16 @@ export interface RefreshTokenRequest {
 export interface User {
   id: string;
   email: string;
-  name: string;
-  role: string;
+  full_name: string;
+  is_active: boolean;
+  is_superuser: boolean;
+  is_staff: boolean;
+  date_joined: string;
 }
 
 export interface AuthTokens {
-  access_token: string;
-  refresh_token: string;
+  access: string;
+  refresh: string;
 }
 
 export interface LoginResponse {
@@ -38,7 +41,9 @@ export interface RegisterResponse {
 }
 
 export interface ProfileResponse {
-  data: User;
+  data: AuthTokens & {
+    user: User;
+  };
   message: string;
 }
 
