@@ -41,9 +41,7 @@ export interface RegisterResponse {
 }
 
 export interface ProfileResponse {
-  data: AuthTokens & {
-    user: User;
-  };
+  data: User;
   message: string;
 }
 

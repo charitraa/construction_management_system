@@ -9,7 +9,7 @@ export const AUTH_QUERY_KEYS = {
 export const AUTH_ENDPOINTS = {
   LOGIN: "/users/login/",
   REGISTER: "/users/register/",
-  PROFILE: "/users/profile/",
+  PROFILE: "/users/me/",
   REFRESH_TOKEN: "/users/refresh/",
   LOGOUT: "/users/logout/",
 } as const;

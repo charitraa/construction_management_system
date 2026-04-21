@@ -18,10 +18,15 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { data, isLoading, isError, error, refetch } = useProfile();
-  const user = data?.data?.user || null;
+  const user = data?.data || null;
+
+  console.log("AuthContext - user:", user);
+  const isAuthenticated = !!user;
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, isError, error, refetch }}>
+    <AuthContext.Provider
+      value={{ user, isLoading, isError, error, refetch, isAuthenticated }}
+    >
       {children}
     </AuthContext.Provider>
   );

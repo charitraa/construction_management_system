@@ -70,10 +70,10 @@ export function Layout({ children }: LayoutProps) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   const handleLogout = () => {
-    logout();
+    // logout();
     navigate("/login");
   };
 
@@ -170,11 +170,11 @@ export function Layout({ children }: LayoutProps) {
               className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                {user?.name.charAt(0).toUpperCase()}
+                {user?.full_name.charAt(0).toUpperCase()}
               </div>
               <div className="hidden sm:flex flex-col items-start">
-                <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-                <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
+                <p className="text-sm font-medium text-gray-900">{user?.full_name}</p>
+                <p className="text-xs text-gray-500 capitalize">"Admin</p>
               </div>
             </button>
 
@@ -182,7 +182,7 @@ export function Layout({ children }: LayoutProps) {
             {userMenuOpen && (
               <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
                 <div className="px-4 py-3 border-b border-gray-200">
-                  <p className="text-sm font-medium text-gray-900">{user?.name}</p>
+                  <p className="text-sm font-medium text-gray-900">{user?.full_name}</p>
                   <p className="text-xs text-gray-500">{user?.email}</p>
                 </div>
                 <button

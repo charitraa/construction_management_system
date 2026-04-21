@@ -1,4 +1,5 @@
 import { Layout } from "@/components/Layout";
+import { DashboardSkeleton } from "@/components/PageSkeleton";
 import { useDashboardOverview } from "../index";
 
 export default function Dashboard() {
@@ -9,9 +10,7 @@ export default function Dashboard() {
   if (isLoading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-lg">Loading dashboard...</div>
-        </div>
+        <DashboardSkeleton />
       </Layout>
     );
   }

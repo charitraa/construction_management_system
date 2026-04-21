@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Briefcase, AlertCircle } from "lucide-react";
 import { useLogin } from "../index";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -11,6 +12,13 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const { isAuthenticated, } = useAuth();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/"); // Redirect to dashboard if already authenticated
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,7 +31,7 @@ export default function Login() {
 
     try {
       await loginMutation.mutateAsync({ email, password });
-      navigate("/");
+      window.location.reload(); // Reload to update auth state
     } catch (err) {
       // Error handling is done in the hook via toast
       setError("Login failed. Please check your credentials.");

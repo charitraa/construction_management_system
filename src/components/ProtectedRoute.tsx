@@ -1,14 +1,19 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { PageSkeleton } from "@/components/PageSkeleton";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated } = useAuth();
+  const { user, isLoading } = useAuth();
 
-  if (!isAuthenticated) {
+  if (isLoading) {
+    return <PageSkeleton />;
+  }
+
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 
