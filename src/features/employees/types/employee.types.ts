@@ -31,6 +31,23 @@ export interface CreateEmployeeResponse {
   message: string;
 }
 
+export interface UpdateEmployeeRequest {
+  name: string;
+  role: "Mason" | "Labor";
+  daily_rate: number;
+  phone: string;
+}
+
+export interface UpdateEmployeeResponse {
+  data: Employee;
+  message: string;
+}
+
+export interface EmployeeDetailsResponse {
+  data: Employee;
+  message: string;
+}
+
 export interface EmployeeStatsResponse {
   data: EmployeeStats;
   message: string;

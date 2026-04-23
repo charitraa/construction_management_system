@@ -2,7 +2,7 @@ export interface Revenue {
   id: string;
   date: string;
   description: string;
-  amount: number;
+  amount: string;
   project: string;
   created_at: string;
   updated_at: string;
@@ -11,7 +11,7 @@ export interface Revenue {
 export interface CreateRevenueRequest {
   date: string;
   description: string;
-  amount: number;
+  amount: string;
   project: string;
 }
 
@@ -24,3 +24,4 @@ export interface CreateRevenueResponse {
   data: Revenue;
   message: string;
 }
+

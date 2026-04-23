@@ -5,6 +5,9 @@ import {
   CreateEmployeeResponse,
   EmployeeStatsResponse,
   ExportEmployeesResponse,
+  UpdateEmployeeRequest,
+  UpdateEmployeeResponse,
+  EmployeeDetailsResponse,
 } from "../types/employee.types";
 import { EMPLOYEE_ENDPOINTS } from "../constants/employee.constants";
 
@@ -18,6 +21,20 @@ export const employeeServices = {
 
   createEmployee: (data: CreateEmployeeRequest) =>
     httpClient.post<CreateEmployeeResponse>(EMPLOYEE_ENDPOINTS.CREATE, data),
+
+  getEmployee: (id: string) =>
+    httpClient.get<EmployeeDetailsResponse>(
+      `${EMPLOYEE_ENDPOINTS.DETAILS}${id}/`,
+    ),
+
+  updateEmployee: (id: string, data: UpdateEmployeeRequest) =>
+    httpClient.put<UpdateEmployeeResponse>(
+      `${EMPLOYEE_ENDPOINTS.UPDATE}${id}/`,
+      data,
+    ),
+
+  deleteEmployee: (id: string) =>
+    httpClient.delete<void>(`${EMPLOYEE_ENDPOINTS.DELETE}${id}/`),
 
   getEmployeeStats: () =>
     httpClient.get<EmployeeStatsResponse>(EMPLOYEE_ENDPOINTS.STATS),

@@ -26,7 +26,7 @@ export default function Revenue() {
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split("T")[0],
     description: "",
-    amount: 0,
+    amount: "",
     project: "",
   });
 
@@ -34,14 +34,14 @@ export default function Revenue() {
     setFormData({
       date: new Date().toISOString().split("T")[0],
       description: "",
-      amount: 0,
+      amount: "",
       project: projects[0]?.id || "",
     });
     setOpenDialog(true);
   };
 
   const handleSave = () => {
-    if (!formData.description || formData.amount === 0 || !formData.project) {
+    if (!formData.description || formData.amount === "" || !formData.project) {
       alert("Please fill all fields");
       return;
     }
@@ -49,7 +49,7 @@ export default function Revenue() {
     createRevenue.mutate({
       date: formData.date,
       description: formData.description,
-      amount: formData.amount,
+      amount: formData.amount.toString(),
       project: formData.project,
     });
 

@@ -14,6 +14,8 @@ import {
 import {
   useListEmployees,
   useCreateEmployee,
+  useUpdateEmployee,
+  useDeleteEmployee,
   useEmployeeStats,
   useExportEmployees,
 } from "../index";
@@ -28,6 +30,8 @@ export default function Employees() {
     useListEmployees();
   const { data: statsData } = useEmployeeStats();
   const createEmployee = useCreateEmployee();
+  const updateEmployee = useUpdateEmployee();
+  const deleteEmployee = useDeleteEmployee();
   const exportEmployees = useExportEmployees();
 
   const employees = employeesData?.data || [];
@@ -70,12 +74,26 @@ export default function Employees() {
       return;
     }
 
-    createEmployee.mutate({
-      name: formData.name,
-      role: formData.role,
-      daily_rate: formData.daily_rate,
-      phone: formData.phone,
-    });
+    if (editingId) {
+      // Update existing employee
+      updateEmployee.mutate({
+        id: editingId,
+        data: {
+          name: formData.name,
+          role: formData.role,
+          daily_rate: formData.daily_rate,
+          phone: formData.phone,
+        },
+      });
+    } else {
+      // Create new employee
+      createEmployee.mutate({
+        name: formData.name,
+        role: formData.role,
+        daily_rate: formData.daily_rate,
+        phone: formData.phone,
+      });
+    }
 
     setOpenDialog(false);
     setFormData({
@@ -122,7 +140,7 @@ export default function Employees() {
             <Button
               onClick={() => handleOpenDialog()}
               className="bg-blue-600 hover:bg-blue-700"
-              disabled={createEmployee.isPending}
+              disabled={createEmployee.isPending || updateEmployee.isPending}
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Employee
@@ -210,12 +228,13 @@ export default function Employees() {
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() =>
-                            alert(
-                              "Delete functionality not implemented in API yet",
-                            )
-                          }
+                          onClick={() => {
+                            if (confirm("Are you sure you want to delete this employee?")) {
+                              deleteEmployee.mutate(employee.id);
+                            }
+                          }}
                           className="p-2 hover:bg-red-50 rounded-lg transition-colors text-red-600"
+                          disabled={deleteEmployee.isPending}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -309,13 +328,15 @@ export default function Employees() {
             <Button
               onClick={handleSave}
               className="bg-blue-600 hover:bg-blue-700"
-              disabled={createEmployee.isPending}
+              disabled={createEmployee.isPending || updateEmployee.isPending}
             >
               {createEmployee.isPending
                 ? "Adding..."
-                : editingId
-                  ? "Update"
-                  : "Add"}
+                : updateEmployee.isPending
+                  ? "Updating..."
+                  : editingId
+                    ? "Update"
+                    : "Add"}
             </Button>
           </DialogFooter>
         </DialogContent>
