@@ -2,9 +2,9 @@ export interface Employee {
   id: string;
   name: string;
   role: "Mason" | "Labor";
-  daily_rate: number;
+  daily_rate: string;
   phone: string;
-  address: string;
+  address: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -12,9 +12,9 @@ export interface Employee {
 export interface CreateEmployeeRequest {
   name: string;
   role: "Mason" | "Labor";
-  daily_rate: number;
+  daily_rate: number | string;
   phone: string;
-  address: string;
+  address?: string;
 }
 
 export interface EmployeeStats {
@@ -24,8 +24,13 @@ export interface EmployeeStats {
 }
 
 export interface ListEmployeesResponse {
-  data: Employee[];
-  message: string;
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: {
+    data: Employee[];
+    message: string;
+  };
 }
 
 export interface CreateEmployeeResponse {
@@ -36,8 +41,9 @@ export interface CreateEmployeeResponse {
 export interface UpdateEmployeeRequest {
   name: string;
   role: "Mason" | "Labor";
-  daily_rate: number;
+  daily_rate: number | string;
   phone: string;
+  address?: string;
 }
 
 export interface UpdateEmployeeResponse {

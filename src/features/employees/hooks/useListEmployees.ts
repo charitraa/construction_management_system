@@ -4,6 +4,7 @@ import { ListEmployeesResponse } from "../types/employee.types";
 import { EMPLOYEE_QUERY_KEYS } from "../constants/employee.constants";
 
 export const useListEmployees = (params?: {
+  search?: string;
   role?: string;
   page?: number;
   page_size?: number;

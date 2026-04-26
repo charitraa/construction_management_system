@@ -16,6 +16,7 @@ import {
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
+import { useLogout } from "@/features/authentication";
 
 interface LayoutProps {
   children: ReactNode;
@@ -71,9 +72,10 @@ export function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { mutate: logout } = useLogout();
 
   const handleLogout = () => {
-    // logout();
+    logout();
     navigate("/login");
   };
 
@@ -190,7 +192,9 @@ export function Layout({ children }: LayoutProps) {
                   className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-gray-50 transition-colors text-red-600"
                 >
                   <LogOut className="w-4 h-4" />
-                  <span className="text-sm font-medium">Logout</span>
+                  <span className="text-sm font-medium" onClick={
+                    () => handleLogout()
+                  }>Logout</span>
                 </button>
               </div>
             )}

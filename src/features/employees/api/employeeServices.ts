@@ -13,6 +13,7 @@ import { EMPLOYEE_ENDPOINTS } from "../constants/employee.constants";
 
 export const employeeServices = {
   listEmployees: (params?: {
+    search?: string;
     role?: string;
     page?: number;
     page_size?: number;

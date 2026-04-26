@@ -5,7 +5,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { DataProvider } from "./context/DataContext";
 import { AuthProvider } from "./context/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Login } from "./features/authentication";
@@ -25,87 +24,85 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <DataProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Routes>
-                {/* Public Routes */}
-                <Route path="/login" element={<Login />} />
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/login" element={<Login />} />
 
-                {/* Protected Routes */}
-                <Route
-                  path="/"
-                  element={
-                    <ProtectedRoute>
-                      <Dashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/employees"
-                  element={
-                    <ProtectedRoute>
-                      <Employees />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/attendance"
-                  element={
-                    <ProtectedRoute>
-                      <Attendance />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/advance"
-                  element={
-                    <ProtectedRoute>
-                      <Advance />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/payroll"
-                  element={
-                    <ProtectedRoute>
-                      <Payroll />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/projects"
-                  element={
-                    <ProtectedRoute>
-                      <Projects />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/expenses"
-                  element={
-                    <ProtectedRoute>
-                      <Expenses />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/revenue"
-                  element={
-                    <ProtectedRoute>
-                      <Revenue />
-                    </ProtectedRoute>
-                  }
-                />
+              {/* Protected Routes */}
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/employees"
+                element={
+                  <ProtectedRoute>
+                    <Employees />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/attendance"
+                element={
+                  <ProtectedRoute>
+                    <Attendance />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/advance"
+                element={
+                  <ProtectedRoute>
+                    <Advance />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/payroll"
+                element={
+                  <ProtectedRoute>
+                    <Payroll />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/projects"
+                element={
+                  <ProtectedRoute>
+                    <Projects />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/expenses"
+                element={
+                  <ProtectedRoute>
+                    <Expenses />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/revenue"
+                element={
+                  <ProtectedRoute>
+                    <Revenue />
+                  </ProtectedRoute>
+                }
+              />
 
-                {/* 404 Route */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
-        </DataProvider>
+              {/* 404 Route */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

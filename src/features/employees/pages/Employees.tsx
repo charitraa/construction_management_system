@@ -43,16 +43,22 @@ export default function Employees() {
   const [filterRole, setFilterRole] = useState<"" | "Mason" | "Labor">("");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 6;
+  const itemsPerPage = 10;
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  const { data: employeesData, isLoading: employeesLoading } = useListEmployees();
+  const { data: employeesData, isLoading: employeesLoading } = useListEmployees({
+    search: searchQuery || undefined,
+    role: filterRole || undefined,
+    page: currentPage,
+    page_size: itemsPerPage,
+  });
   const { data: statsData } = useEmployeeStats();
   const createEmployee = useCreateEmployee();
   const updateEmployee = useUpdateEmployee();
   const deleteEmployee = useDeleteEmployee();
   const exportEmployees = useExportEmployees();
 
-  const employees = employeesData?.data || [];
+  const employees = employeesData?.results?.data || [];
   const stats = statsData?.data;
 
   const [formData, setFormData] = useState({
@@ -63,30 +69,20 @@ export default function Employees() {
     address: "",
   });
 
-  // Filter employees based on role and search
-  const filteredEmployees = employees.filter((employee) => {
-    const matchesRole = !filterRole || employee.role === filterRole;
-    const matchesSearch = !searchQuery ||
-      employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      employee.phone.includes(searchQuery)
-    return matchesRole && matchesSearch;
-  });
-
-  // Pagination
-  const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
-  const paginatedEmployees = filteredEmployees.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  // Server-side pagination - no client-side filtering needed
+  const totalCount = employeesData?.count || 0;
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
+  const paginatedEmployees = employees;
 
   const handleOpenDialog = (employeeId?: string) => {
+    setValidationErrors({});
     if (employeeId) {
       const employee = employees.find((e) => e.id === employeeId);
       if (employee) {
         setFormData({
           name: employee.name,
           role: employee.role,
-          daily_rate: employee.daily_rate,
+          daily_rate: parseFloat(employee.daily_rate) || 0,
           phone: employee.phone,
           address: employee.address || "",
         });
@@ -105,18 +101,63 @@ export default function Employees() {
     setOpenDialog(true);
   };
 
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+
+    // Name validation
+    if (!formData.name.trim()) {
+      errors.name = "Full name is required";
+    } else if (formData.name.trim().length < 2) {
+      errors.name = "Name must be at least 2 characters";
+    } else if (formData.name.trim().length > 100) {
+      errors.name = "Name must be less than 100 characters";
+    } else if (!/^[a-zA-Z\s]+$/.test(formData.name.trim())) {
+      errors.name = "Name can only contain letters and spaces";
+    }
+
+    // Role validation
+    if (!formData.role) {
+      errors.role = "Role is required";
+    }
+
+    // Daily rate validation
+    if (formData.daily_rate === 0 || formData.daily_rate === null || formData.daily_rate === undefined) {
+      errors.daily_rate = "Daily rate is required";
+    } else if (formData.daily_rate < 0) {
+      errors.daily_rate = "Daily rate must be positive";
+    } else if (formData.daily_rate > 100000) {
+      errors.daily_rate = "Daily rate is too high";
+    }
+
+    // Phone validation
+    if (!formData.phone.trim()) {
+      errors.phone = "Phone number is required";
+    } else if (!/^[0-9+\s-]{10,15}$/.test(formData.phone.replace(/\s/g, ""))) {
+      errors.phone = "Please enter a valid phone number (10-15 digits)";
+    } else if (!/^\+?[0-9\s-]+$/.test(formData.phone.trim())) {
+      errors.phone = "Phone can only contain numbers, spaces, hyphens, and +";
+    }
+
+    // Address validation (optional but if provided, validate)
+    if (formData.address && formData.address.trim().length > 200) {
+      errors.address = "Address must be less than 200 characters";
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSave = () => {
-    if (!formData.name || !formData.phone || formData.daily_rate === 0) {
-      alert("Please fill all required fields");
+    if (!validateForm()) {
       return;
     }
 
     const employeeData = {
-      name: formData.name,
+      name: formData.name.trim(),
       role: formData.role,
       daily_rate: formData.daily_rate,
-      phone: formData.phone,
-      address: formData.address,
+      phone: formData.phone.trim(),
+      address: formData.address?.trim() || undefined,
     };
 
     if (editingId) {
@@ -133,6 +174,7 @@ export default function Employees() {
       phone: "",
       address: "",
     });
+    setValidationErrors({});
     setEditingId(null);
   };
 
@@ -350,7 +392,7 @@ export default function Employees() {
 
                   <div className="space-y-2.5">
                     <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <span>Daily Rate: <span className="font-semibold text-gray-900">Rs. {employee.daily_rate}</span></span>
+                      <span>Daily Rate: <span className="font-semibold text-gray-900">Rs. {parseFloat(employee.daily_rate).toFixed(2)}</span></span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Phone className="w-4 h-4 text-gray-400" />
@@ -366,14 +408,14 @@ export default function Employees() {
             {totalPages > 1 && (
               <div className="flex items-center justify-between pt-4">
                 <div className="text-sm text-gray-500">
-                  Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredEmployees.length)} of {filteredEmployees.length} employees
+                  Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} employees
                 </div>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
+                    disabled={currentPage === 1 || !employeesData?.previous}
                     className="gap-1"
                   >
                     <ChevronLeft className="w-4 h-4" />
@@ -408,7 +450,7 @@ export default function Employees() {
                     variant="outline"
                     size="sm"
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
+                    disabled={currentPage === totalPages || !employeesData?.next}
                     className="gap-1"
                   >
                     Next
@@ -422,7 +464,15 @@ export default function Employees() {
       </div>
 
       {/* Add/Edit Employee Dialog */}
-      <Dialog open={openDialog} onOpenChange={setOpenDialog}>
+      <Dialog
+        open={openDialog}
+        onOpenChange={(open) => {
+          setOpenDialog(open);
+          if (!open) {
+            setValidationErrors({});
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">
@@ -440,8 +490,11 @@ export default function Employees() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Enter employee name"
-                  className="border-gray-200"
+                  className={`border-gray-200 ${validationErrors.name ? 'border-red-500 focus:ring-red-500' : ''}`}
                 />
+                {validationErrors.name && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.name}</p>
+                )}
               </div>
 
               <div>
@@ -450,17 +503,23 @@ export default function Employees() {
                 </label>
                 <select
                   value={formData.role}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setFormData({
                       ...formData,
                       role: e.target.value as "Mason" | "Labor",
-                    })
-                  }
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                    });
+                    if (validationErrors.role) {
+                      setValidationErrors((prev) => ({ ...prev, role: '' }));
+                    }
+                  }}
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 bg-white ${validationErrors.role ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 focus:ring-indigo-500'}`}
                 >
                   <option value="Labor">Labor</option>
                   <option value="Mason">Mason</option>
                 </select>
+                {validationErrors.role && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.role}</p>
+                )}
               </div>
 
               <div>
@@ -468,17 +527,25 @@ export default function Employees() {
                   Daily Rate (Rs.) <span className="text-red-500">*</span>
                 </label>
                 <Input
-                  type="number"
+                  type="text"
                   value={formData.daily_rate}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setFormData({
                       ...formData,
                       daily_rate: parseInt(e.target.value) || 0,
-                    })
-                  }
+                    });
+                    if (validationErrors.daily_rate) {
+                      setValidationErrors((prev) => ({ ...prev, daily_rate: '' }));
+                    }
+                  }}
                   placeholder="Enter daily rate"
-                  className="border-gray-200"
+                  className={`border-gray-200 ${validationErrors.daily_rate ? 'border-red-500 focus:ring-red-500' : ''}`}
+                  min="0"
+                  max="100000"
                 />
+                {validationErrors.daily_rate && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.daily_rate}</p>
+                )}
               </div>
 
               <div className="col-span-2">
@@ -487,10 +554,18 @@ export default function Employees() {
                 </label>
                 <Input
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="Enter phone number"
-                  className="border-gray-200"
+                  onChange={(e) => {
+                    setFormData({ ...formData, phone: e.target.value });
+                    if (validationErrors.phone) {
+                      setValidationErrors((prev) => ({ ...prev, phone: '' }));
+                    }
+                  }}
+                  placeholder="Enter phone number (e.g., 9812356893)"
+                  className={`border-gray-200 ${validationErrors.phone ? 'border-red-500 focus:ring-red-500' : ''}`}
                 />
+                {validationErrors.phone && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.phone}</p>
+                )}
               </div>
 
               <div className="col-span-2">
@@ -499,16 +574,30 @@ export default function Employees() {
                 </label>
                 <Input
                   value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, address: e.target.value });
+                    if (validationErrors.address) {
+                      setValidationErrors((prev) => ({ ...prev, address: '' }));
+                    }
+                  }}
                   placeholder="Enter address"
-                  className="border-gray-200"
+                  className={`border-gray-200 ${validationErrors.address ? 'border-red-500 focus:ring-red-500' : ''}`}
                 />
+                {validationErrors.address && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.address}</p>
+                )}
               </div>
             </div>
           </div>
 
           <DialogFooter className="gap-3">
-            <Button variant="outline" onClick={() => setOpenDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setOpenDialog(false);
+                setValidationErrors({});
+              }}
+            >
               Cancel
             </Button>
             <Button
