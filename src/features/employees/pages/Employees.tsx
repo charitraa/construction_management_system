@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,13 +41,24 @@ export default function Employees() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [filterRole, setFilterRole] = useState<"" | "Mason" | "Labor">("");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
+  // Debounced search - updates 500ms after user stops typing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchInput);
+      setCurrentPage(1); // Reset to first page when searching
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
   const { data: employeesData, isLoading: employeesLoading } = useListEmployees({
-    search: searchQuery || undefined,
+    search: debouncedSearchQuery || undefined,
     role: filterRole || undefined,
     page: currentPage,
     page_size: itemsPerPage,
@@ -190,7 +201,8 @@ export default function Employees() {
 
   const clearFilters = () => {
     setFilterRole("");
-    setSearchQuery("");
+    setSearchInput("");
+    setDebouncedSearchQuery("");
     setCurrentPage(1);
   };
 
@@ -294,11 +306,8 @@ export default function Employees() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
                 placeholder="Search by name, phone, or email..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 className="pl-10 border-gray-200 focus:border-indigo-300 focus:ring-indigo-200"
               />
             </div>
@@ -317,7 +326,7 @@ export default function Employees() {
                 <option value="Labor">Labor</option>
               </select>
 
-              {(filterRole || searchQuery) && (
+              {(filterRole || searchInput) && (
                 <Button
                   variant="outline"
                   onClick={clearFilters}
@@ -339,9 +348,9 @@ export default function Employees() {
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-1">No employees found</h3>
             <p className="text-gray-500 mb-4">
-              {searchQuery || filterRole ? "Try adjusting your filters" : "Get started by adding your first employee"}
+              {searchInput || filterRole ? "Try adjusting your filters" : "Get started by adding your first employee"}
             </p>
-            {!searchQuery && !filterRole && (
+            {!searchInput && !filterRole && (
               <Button onClick={() => handleOpenDialog()} className="gap-2">
                 <Plus className="w-4 h-4" />
                 Add Employee
