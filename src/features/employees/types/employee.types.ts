@@ -4,6 +4,7 @@ export interface Employee {
   role: "Mason" | "Labor";
   daily_rate: number;
   phone: string;
+  address: string;
   created_at: string;
   updated_at: string;
 }
@@ -13,6 +14,7 @@ export interface CreateEmployeeRequest {
   role: "Mason" | "Labor";
   daily_rate: number;
   phone: string;
+  address: string;
 }
 
 export interface EmployeeStats {
