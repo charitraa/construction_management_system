@@ -3,6 +3,13 @@ export const ATTENDANCE_QUERY_KEYS = {
   CREATE: "attendance-create",
   BY_DATE: "attendance-by-date",
   STATS: "attendance-stats",
+  EMPLOYEES: "attendance-employees",
+  DEPARTMENTS: "attendance-departments",
+  SUMMARY: "attendance-summary",
+  EXPORT: "attendance-export",
+  DETAIL: "attendance-detail",
+  UPDATE: "attendance-update",
+  DELETE: "attendance-delete",
 } as const;
 
 export const ATTENDANCE_ENDPOINTS = {
@@ -10,4 +17,11 @@ export const ATTENDANCE_ENDPOINTS = {
   CREATE: "/attendance/create/",
   BY_DATE: "/attendance/by-date/",
   STATS: "/attendance/stats/",
+  EXPORT: "/attendance/export/",
+  EMPLOYEES: "/attendance/employees/",
+  DEPARTMENTS: "/attendance/departments/",
+  SUMMARY: "/attendance/summary/",
+  DETAIL: "/attendance/details/",
+  UPDATE: "/attendance/update/",
+  DELETE: "/attendance/delete/",
 } as const;
