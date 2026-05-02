@@ -20,6 +20,8 @@ export const useCreateProject = () => {
     mutationKey: [PROJECT_QUERY_KEYS.CREATE],
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [PROJECT_QUERY_KEYS.LIST] });
+      queryClient.invalidateQueries({ queryKey: [PROJECT_QUERY_KEYS.STATS] });
+
       toast({
         title: "Project Created",
         description: "Project has been successfully created",

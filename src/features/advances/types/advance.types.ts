@@ -15,10 +15,11 @@ export interface CreateAdvanceRequest {
 }
 
 export interface AdvanceStats {
-  total: number;
-  average: number;
-  highest: number;
-  lowest: number;
+  average_advance: number;
+  highest_advance: number;
+  total_advance: number;
+  total_count: number;
+
 }
 
 export interface ListAdvancesResponse {

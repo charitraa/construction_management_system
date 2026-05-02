@@ -2,8 +2,9 @@ export interface Project {
   id: string;
   name: string;
   description: string;
+  client_name: string;
+  location: string;
   start_date: string;
-  end_date: string;
   status: "ongoing" | "completed" | "delayed";
   budget: number;
   created_at: string;
@@ -13,8 +14,9 @@ export interface Project {
 export interface CreateProjectRequest {
   name: string;
   description: string;
+  client_name: string;
+  location: string;
   start_date: string;
-  end_date: string;
   status: "ongoing" | "completed" | "delayed";
   budget: number;
 }
