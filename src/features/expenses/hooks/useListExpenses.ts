@@ -8,6 +8,7 @@ export const useListExpenses = (params?: {
   start_date?: string;
   end_date?: string;
   project?: string;
+  search?: string;
   page?: number;
   page_size?: number;
 }) => {
