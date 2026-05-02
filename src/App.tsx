@@ -14,6 +14,7 @@ import Attendance from "./features/attendance/pages/Attendance";
 import Advance from "./features/advances/pages/Advance";
 import Payroll from "./features/payroll/pages/Payroll";
 import Projects from "./features/projects/pages/Projects";
+import ProjectDetails from "./features/projects/pages/ProjectDetails";
 import Expenses from "./features/expenses/pages/Expenses";
 import Revenue from "./features/revenue/pages/Revenue";
 import NotFound from "./features/NotFound/pages/NotFound";
@@ -78,6 +79,14 @@ export function App() {
                 element={
                   <ProtectedRoute>
                     <Projects />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/projects/:id"
+                element={
+                  <ProtectedRoute>
+                    <ProjectDetails />
                   </ProtectedRoute>
                 }
               />

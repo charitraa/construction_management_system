@@ -21,20 +21,52 @@ export interface CreateProjectRequest {
   budget: number;
 }
 
+export interface UpdateProjectRequest {
+  id: string;
+  data: Partial<CreateProjectRequest>;
+}
+
 export interface ProjectStats {
   total: number;
   ongoing: number;
-  completed: number;
-  delayed: number;
+  by_status: {
+    completed: number;
+    ongoing: number;
+    delayed?: number;
+  };
+}
+
+export interface ProjectPagination {
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  has_next: boolean;
+  has_previous: boolean;
 }
 
 export interface ListProjectsResponse {
   data: Project[];
+  pagination: ProjectPagination;
   message: string;
 }
 
 export interface CreateProjectResponse {
   data: Project;
+  message: string;
+}
+
+export interface ProjectRetrieveResponse {
+  data: Project;
+  message: string;
+}
+
+export interface ProjectDeleteResponse {
+  message: string;
+}
+
+export interface ProjectExportResponse {
+  data: string;
   message: string;
 }
 

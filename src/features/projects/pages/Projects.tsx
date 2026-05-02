@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,8 @@ import {
   Building2,
   User,
   MapPin,
-  Briefcase
+  Briefcase,
+  Eye
 } from "lucide-react";
 import {
   Dialog,
@@ -28,7 +30,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { useListProjects, useCreateProject, useProjectStats } from "../index";
+import { useListProjects, useCreateProject, useUpdateProject, useDeleteProject, useProjectStats, useExportProjects } from "../index";
 
 export default function Projects() {
   const [openDialog, setOpenDialog] = useState(false);
@@ -38,10 +40,19 @@ export default function Projects() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
+  const navigate = useNavigate();
 
-  const { data: projectsData, isLoading: projectsLoading } = useListProjects();
+  const { data: projectsData, isLoading: projectsLoading } = useListProjects({
+    page: currentPage,
+    page_size: itemsPerPage,
+    ...(searchTerm && { search: searchTerm }),
+    ...(statusFilter !== "all" && { status: statusFilter }),
+  });
   const { data: statsData } = useProjectStats();
   const createProject = useCreateProject();
+  const updateProject = useUpdateProject();
+  const deleteProject = useDeleteProject();
+  const exportProjects = useExportProjects();
 
   const projects = projectsData?.data || [];
   const stats = statsData?.data;
@@ -56,32 +67,17 @@ export default function Projects() {
     budget: 0,
   });
 
-  // Filter projects based on search and status
-  const filteredProjects = useMemo(() => {
-    let filtered = projects;
+  // Get pagination info from API response
+  const pagination = projectsData?.pagination;
+  const totalPages = pagination?.total_pages || 1;
+  const displayedProjects = projects; // API already returns paginated results
 
-    if (searchTerm) {
-      filtered = filtered.filter(project =>
-        project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (project.client_name && project.client_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (project.location && project.location.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (project.description && project.description.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
+  // Sync currentPage with API pagination
+  useEffect(() => {
+    if (pagination?.page && pagination.page !== currentPage) {
+      setCurrentPage(pagination.page);
     }
-
-    if (statusFilter !== "all") {
-      filtered = filtered.filter(project => project.status === statusFilter);
-    }
-
-    return filtered;
-  }, [projects, searchTerm, statusFilter]);
-
-  // Pagination
-  const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
-  const paginatedProjects = filteredProjects.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  }, [pagination?.page, currentPage]);
 
   const handleOpenDialog = (projectId?: string) => {
     if (projectId) {
@@ -126,15 +122,32 @@ export default function Projects() {
       return;
     }
 
-    createProject.mutate({
-      name: formData.name,
-      client_name: formData.client_name,
-      location: formData.location,
-      description: formData.description,
-      start_date: formData.start_date,
-      status: formData.status,
-      budget: formData.budget,
-    });
+    if (editingId) {
+      // Update existing project
+      updateProject.mutate({
+        id: editingId,
+        data: {
+          name: formData.name,
+          client_name: formData.client_name,
+          location: formData.location,
+          description: formData.description,
+          start_date: formData.start_date,
+          status: formData.status,
+          budget: formData.budget,
+        },
+      });
+    } else {
+      // Create new project
+      createProject.mutate({
+        name: formData.name,
+        client_name: formData.client_name,
+        location: formData.location,
+        description: formData.description,
+        start_date: formData.start_date,
+        status: formData.status,
+        budget: formData.budget,
+      });
+    }
 
     setOpenDialog(false);
     setFormData({
@@ -149,9 +162,21 @@ export default function Projects() {
     setEditingId(null);
   };
 
+
+
+  const handleMarkAsCompleted = (projectId: string) => {
+    updateProject.mutate({
+      id: projectId,
+      data: { status: "completed" },
+    });
+  };
+
   const handleDeleteProject = (projectId: string) => {
-    alert("Delete functionality will be implemented when API is ready");
-    setShowDeleteConfirm(null);
+    deleteProject.mutate(projectId, {
+      onSuccess: () => {
+        setShowDeleteConfirm(null);
+      },
+    });
   };
 
   const getStatusColor = (status: string) => {
@@ -218,14 +243,25 @@ export default function Projects() {
             <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Projects</h1>
             <p className="text-gray-500 mt-1">Manage and track all construction projects</p>
           </div>
-          <Button
-            onClick={() => handleOpenDialog()}
-            className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 shadow-lg hover:shadow-xl transition-all duration-200 gap-2"
-            disabled={createProject.isPending}
-          >
-            <Plus className="w-4 h-4" />
-            New Project
-          </Button>
+          <div className="flex gap-3">
+            <Button
+              onClick={() => exportProjects.mutate({})}
+              variant="outline"
+              className="gap-2"
+              disabled={exportProjects.isPending}
+            >
+              <Eye className="w-4 h-4" />
+              {exportProjects.isPending ? "Exporting..." : "Export CSV"}
+            </Button>
+            <Button
+              onClick={() => handleOpenDialog()}
+              className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 shadow-lg hover:shadow-xl transition-all duration-200 gap-2"
+              disabled={createProject.isPending}
+            >
+              <Plus className="w-4 h-4" />
+              New Project
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -265,7 +301,7 @@ export default function Projects() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-500">Completed</p>
-                  <p className="text-2xl font-bold text-green-600 mt-1">{stats.completed}</p>
+                  <p className="text-2xl font-bold text-green-600 mt-1">{stats.by_status.completed}</p>
                 </div>
                 <div className="bg-green-50 p-3 rounded-xl">
                   <CheckCircle className="w-6 h-6 text-green-600" />
@@ -280,7 +316,7 @@ export default function Projects() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-500">Delayed</p>
-                  <p className="text-2xl font-bold text-red-600 mt-1">{stats.delayed}</p>
+                  <p className="text-2xl font-bold text-red-600 mt-1">{stats.by_status.delayed || 0}</p>
                 </div>
                 <div className="bg-red-50 p-3 rounded-xl">
                   <AlertCircle className="w-6 h-6 text-red-600" />
@@ -337,7 +373,7 @@ export default function Projects() {
         </div>
 
         {/* Projects Grid */}
-        {paginatedProjects.length === 0 ? (
+        {projects.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Building2 className="w-8 h-8 text-gray-400" />
@@ -358,7 +394,7 @@ export default function Projects() {
         ) : (
           <>
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5">
-              {paginatedProjects.map((project) => (
+              {projects.map((project) => (
                 <div
                   key={project.id}
                   className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden group"
@@ -378,15 +414,28 @@ export default function Projects() {
                         </div>
                       </div>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {project.status !== "completed" && (
+                          <button
+                            onClick={() => handleMarkAsCompleted(project.id)}
+                            className="p-2 hover:bg-green-50 rounded-lg transition-colors text-green-600"
+                            title="Mark as completed"
+                            disabled={updateProject.isPending}
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleOpenDialog(project.id)}
                           className="p-2 hover:bg-indigo-50 rounded-lg transition-colors text-indigo-600"
+                          title="Edit project"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => setShowDeleteConfirm(project.id)}
                           className="p-2 hover:bg-red-50 rounded-lg transition-colors text-red-600"
+                          title="Delete project"
+                          disabled={deleteProject.isPending}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -471,41 +520,41 @@ export default function Projects() {
             </div>
 
             {/* Pagination */}
-            {totalPages > 1 && (
+            {pagination && pagination.total_pages > 1 && (
               <div className="flex items-center justify-between pt-4">
                 <div className="text-sm text-gray-500">
-                  Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredProjects.length)} of {filteredProjects.length} projects
+                  Showing {((pagination.page) - 1) * pagination.page_size + 1} to {Math.min(pagination.page * pagination.page_size, pagination.total)} of {pagination.total} projects
                 </div>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
+                    disabled={!pagination.has_previous}
                     className="gap-1"
                   >
                     <ChevronLeft className="w-4 h-4" />
                     Previous
                   </Button>
                   <div className="flex gap-1">
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    {Array.from({ length: Math.min(5, pagination.total_pages) }, (_, i) => {
                       let pageNum;
-                      if (totalPages <= 5) {
+                      if (pagination.total_pages <= 5) {
                         pageNum = i + 1;
-                      } else if (currentPage <= 3) {
+                      } else if (pagination.page <= 3) {
                         pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
+                      } else if (pagination.page >= pagination.total_pages - 2) {
+                        pageNum = pagination.total_pages - 4 + i;
                       } else {
-                        pageNum = currentPage - 2 + i;
+                        pageNum = pagination.page - 2 + i;
                       }
                       return (
                         <Button
                           key={pageNum}
-                          variant={currentPage === pageNum ? "default" : "outline"}
+                          variant={pagination.page === pageNum ? "default" : "outline"}
                           size="sm"
                           onClick={() => setCurrentPage(pageNum)}
-                          className={`w-9 ${currentPage === pageNum ? "bg-indigo-600" : ""}`}
+                          className={`w-9 ${pagination.page === pageNum ? "bg-indigo-600" : ""}`}
                         >
                           {pageNum}
                         </Button>
@@ -515,8 +564,8 @@ export default function Projects() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(p => Math.min(pagination.total_pages, p + 1))}
+                    disabled={!pagination.has_next}
                     className="gap-1"
                   >
                     Next
@@ -649,9 +698,9 @@ export default function Projects() {
             <Button
               onClick={handleSave}
               className="bg-indigo-600 hover:bg-indigo-700"
-              disabled={createProject.isPending}
+              disabled={createProject.isPending || updateProject.isPending}
             >
-              {createProject.isPending ? "Saving..." : editingId ? "Update Project" : "Create Project"}
+              {(createProject.isPending || updateProject.isPending) ? "Saving..." : editingId ? "Update Project" : "Create Project"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -683,13 +732,15 @@ export default function Projects() {
               <Button
                 onClick={() => handleDeleteProject(showDeleteConfirm)}
                 className="flex-1 bg-red-600 hover:bg-red-700"
+                disabled={deleteProject.isPending}
               >
-                Delete Project
+                {deleteProject.isPending ? "Deleting..." : "Delete Project"}
               </Button>
             </div>
           </div>
         </div>
       )}
+
     </Layout>
   );
 }
