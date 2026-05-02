@@ -106,7 +106,6 @@ export function App() {
                   </ProtectedRoute>
                 }
               />
-
               {/* 404 Route */}
               <Route path="*" element={<NotFound />} />
             </Routes>

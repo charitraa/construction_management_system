@@ -1,707 +1,594 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Plus,
-  Search,
-  Calendar,
-  DollarSign,
-  TrendingUp,
-  Wallet,
-  PieChart,
-  X,
-  ChevronLeft,
-  ChevronRight,
-  Building2,
-  User,
-  Trash2,
-  Edit2,
-  Eye,
-  Download
+  Plus, Search, Calendar, DollarSign, TrendingUp, Wallet,
+  PieChart, X, ChevronLeft, ChevronRight, Building2,
+  Trash2, Edit2, Eye, Download, TrendingDown, ArrowUpRight,
+  Hash, Package
 } from "lucide-react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { useListRevenue, useCreateRevenue, useListProjects } from "../index";
+import {
+  useListRevenue, useCreateRevenue, useDeleteRevenue, useGetRevenue,
+  useUpdateRevenue, useRevenueStats, useExportRevenue, useListProjects,
+} from "../index";
+
+
+
+
+
+const fmtINR = (n: number) =>
+  n >= 1e7 ? `₹${(n / 1e7).toFixed(2)}Cr`
+    : n >= 1e5 ? `₹${(n / 1e5).toFixed(1)}L`
+      : `Rs. ${Math.round(n).toLocaleString("en-IN")}`;
+
+/* ─────────────────────── stat card ─────────────────────── */
+
+const StatCard = ({
+  label, value, sub, accent, iconColor, icon,
+}: { label: string; value: string; sub: string; accent: string; iconColor: string; icon: React.ReactNode }) => (
+  <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+    <div className="flex items-start justify-between">
+      <div>
+        <p className="text-[10px] font-bold tracking-[.18em] uppercase text-slate-400">{label}</p>
+        <p className="text-2xl font-extrabold text-slate-900 mt-1.5 tabular-nums leading-none">{value}</p>
+        <p className="text-[11px] text-slate-400 mt-1">{sub}</p>
+      </div>
+      <div className={`${accent} p-2.5 rounded-xl`}>
+        <div className={`${iconColor} w-5 h-5`}>{icon}</div>
+      </div>
+    </div>
+  </div>
+);
+
+/* ─────────────────────── field label ─────────────────────── */
+
+const FieldLabel = ({ children }: { children: React.ReactNode }) => (
+  <label className="block text-[10px] font-bold tracking-[.15em] uppercase text-slate-400 mb-1.5">
+    {children} <span className="text-rose-400 normal-case tracking-normal">*</span>
+  </label>
+);
+
+const FieldError = ({ msg }: { msg?: string }) =>
+  msg ? <p className="text-[11px] text-rose-500 mt-1 font-medium">{msg}</p> : null;
+
+/* ─────────────────────── shared form ─────────────────────── */
+
+interface RevenueForm {
+  description: string;
+  amount: string; project: string; date: string;
+  client_name: string;
+}
+
+const RevenueFormBody = ({
+  form, setForm, errors, setErrors, projects, revenues,
+}: {
+  form: RevenueForm; setForm: (f: RevenueForm) => void;
+  errors: Record<string, string>; setErrors: (e: Record<string, string>) => void;
+  projects: any[]; revenues: any[];
+}) => {
+  const clear = (k: string) => { if (errors[k]) setErrors({ ...errors, [k]: "" }); };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <FieldLabel>Description</FieldLabel>
+        <Input value={form.description}
+          onChange={e => { setForm({ ...form, description: e.target.value }); clear("description"); }}
+          placeholder="e.g. Enterprise consulting — Q2"
+          className={`rounded-xl border-slate-200 focus-visible:ring-emerald-300 ${errors.description ? "border-rose-400" : ""}`}
+        />
+        <FieldError msg={errors.description} />
+      </div>
+
+      <div>
+        <FieldLabel>Client Name</FieldLabel>
+        <Input value={form.client_name}
+          onChange={e => { setForm({ ...form, client_name: e.target.value }); clear("client_name"); }}
+          placeholder="client or company name"
+          className={`rounded-xl border-slate-200 focus-visible:ring-emerald-300 ${errors.client_name ? "border-rose-400" : ""}`}
+        />
+        <FieldError msg={errors.client_name} />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        <div>
+          <FieldLabel>Amount (₹)</FieldLabel>
+          <Input type="number" value={form.amount}
+            onChange={e => { setForm({ ...form, amount: e.target.value }); clear("amount"); }}
+            placeholder="e.g. 125000"
+            className={`rounded-xl border-slate-200 focus-visible:ring-emerald-300 ${errors.amount ? "border-rose-400" : ""}`}
+          />
+          <FieldError msg={errors.amount} />
+        </div>
+      </div>
+
+      <div>
+        <FieldLabel>Project</FieldLabel>
+        <select value={form.project} onChange={e => { setForm({ ...form, project: e.target.value }); clear("project"); }}
+          className={`w-full px-3 py-2.5 border rounded-xl text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-300 ${errors.project ? "border-rose-400" : "border-slate-200"}`}>
+          <option value="">— Select project —</option>
+          {projects.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        <FieldError msg={errors.project} />
+      </div>
+
+      <div>
+        <FieldLabel>Date</FieldLabel>
+        <Input type="date" value={form.date}
+          onChange={e => setForm({ ...form, date: e.target.value })}
+          className="rounded-xl border-slate-200 focus-visible:ring-emerald-300"
+        />
+      </div>
+    </div>
+  );
+};
+
+/* ─────────────────────── main page ─────────────────────── */
 
 export default function Revenue() {
   const [openDialog, setOpenDialog] = useState(false);
+  const [editDialog, setEditDialog] = useState(false);
+  const [viewDialog, setViewDialog] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [projectFilter, setProjectFilter] = useState<"all" | string>("all");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [isDebouncing, setIsDebouncing] = useState(false);
+
+  const [projectFilter, setProjectFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
   const [currentPage, setCurrentPage] = useState(1);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
-  const itemsPerPage = 8;
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
 
-  const { data: revenueData, isLoading: revenueLoading } = useListRevenue();
-  const { data: projectsData } = useListProjects();
-  const createRevenue = useCreateRevenue();
+  const blankForm: RevenueForm = {
+    description: "", amount: "", project: "",
+    date: new Date().toISOString().split("T")[0], client_name: "",
+  };
+  const [form, setForm] = useState<RevenueForm>(blankForm);
+  const [editForm, setEditForm] = useState<RevenueForm>(blankForm);
 
-  const revenue = revenueData?.data || [];
-  const projects = projectsData?.data || [];
-
-  const [formData, setFormData] = useState({
-    date: new Date().toISOString().split("T")[0],
-    client_name: "",
-    description: "",
-    amount: "",
-    project: "",
+  const { data: revenueData, isLoading } = useListRevenue({
+    page: currentPage, page_size: 10,
+    search: debouncedSearch || undefined,
+    project: projectFilter !== "all" ? projectFilter : undefined,
+    start_date: dateRange.start || undefined,
+    end_date: dateRange.end || undefined,
   });
+  const { data: projectsData } = useListProjects();
+  const { data: statsData } = useRevenueStats();
+  const { data: selectedData, isLoading: selectedLoading } = useGetRevenue(selectedId ?? "");
+  const createRevenue = useCreateRevenue();
+  const updateRevenue = useUpdateRevenue();
+  const deleteRevenue = useDeleteRevenue();
+  const exportRevenue = useExportRevenue();
 
-  // Filter revenue
-  const filteredRevenue = useMemo(() => {
-    let filtered = revenue;
+  const revenues = revenueData?.data ?? [];
+  const projects = projectsData?.data ?? [];
+  const totalCount = revenueData?.pagination.total ?? 0;
+  const totalPages = revenueData?.pagination.total_pages ?? 0;
 
-    if (searchTerm) {
-      filtered = filtered.filter(item =>
-        item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (item.client_name && item.client_name.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-    }
-
-    if (projectFilter !== "all") {
-      filtered = filtered.filter(item => item.project === projectFilter);
-    }
-
-    if (dateRange.start) {
-      filtered = filtered.filter(item => item.date >= dateRange.start);
-    }
-    if (dateRange.end) {
-      filtered = filtered.filter(item => item.date <= dateRange.end);
-    }
-
-    return filtered;
-  }, [revenue, searchTerm, projectFilter, dateRange]);
-
-  // Pagination
-  const totalPages = Math.ceil(filteredRevenue.length / itemsPerPage);
-  const paginatedRevenue = filteredRevenue.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  // Calculate statistics
   const stats = useMemo(() => {
-    const totalAmount = revenue.reduce((sum, item) => sum + parseFloat(item.amount), 0);
-    const averageRevenue = revenue.length > 0 ? totalAmount / revenue.length : 0;
-    const highestRevenue = revenue.length > 0 ? Math.max(...revenue.map(item => parseFloat(item.amount))) : 0;
-    const projectRevenue = projects.map(project => ({
-      name: project.name,
-      total: revenue.filter(item => item.project === project.id).reduce((sum, item) => sum + parseFloat(item.amount), 0)
-    })).filter(p => p.total > 0);
-
+    const d = statsData?.data;
     return {
-      totalAmount,
-      averageRevenue,
-      highestRevenue,
-      transactionCount: revenue.length,
-      projectRevenue,
+      total: d?.total_revenue ?? 0,
+      average: d?.average_revenue ?? 0,
+      highest: d?.highest_revenue ?? 0,
+      count: d?.total_records ?? 0,
+      breakdown: (d?.category_breakdown ?? {}) as Record<string, number>,
     };
-  }, [revenue, projects]);
+  }, [statsData]);
 
-  const handleOpenDialog = () => {
-    setFormData({
-      date: new Date().toISOString().split("T")[0],
-      client_name: "",
-      description: "",
-      amount: "",
-      project: projects[0]?.id || "",
-    });
+  /* debounce */
+  useEffect(() => {
+    setIsDebouncing(true);
+    const t = setTimeout(() => { setDebouncedSearch(searchTerm); setIsDebouncing(false); }, 450);
+    return () => { clearTimeout(t); setIsDebouncing(false); };
+  }, [searchTerm]);
+
+  useEffect(() => { setCurrentPage(1); }, [debouncedSearch, projectFilter, dateRange.start, dateRange.end]);
+
+  /* validation */
+  const validate = (f: RevenueForm) => {
+    const e: Record<string, string> = {};
+    if (!f.description.trim()) e.description = "Description is required";
+    if (!f.client_name.trim()) e.client_name = "Client name is required";
+    if (!f.amount.trim() || isNaN(+f.amount) || +f.amount <= 0) e.amount = "Enter a valid positive amount";
+    if (!f.project) e.project = "Select a project";
+    return e;
+  };
+
+  const handleAdd = () => {
+    const errs = validate(form);
+    setFormErrors(errs);
+    if (Object.keys(errs).length) return;
+    createRevenue.mutate(form);
+    setOpenDialog(false);
+    setFormErrors({});
+  };
+
+  const handleEdit = () => {
+    const errs = validate(editForm);
+    setEditErrors(errs);
+    if (Object.keys(errs).length || !selectedId) return;
+    updateRevenue.mutate({ id: selectedId, data: editForm });
+    setEditDialog(false);
+    setEditErrors({});
+  };
+
+  const handleDelete = (id: string) => deleteRevenue.mutate(id, { onSuccess: () => setShowDeleteConfirm(null) });
+
+  const openAdd = () => {
+    setForm({ ...blankForm, project: projects[0]?.id ?? "" });
+    setFormErrors({});
     setOpenDialog(true);
   };
 
-  const handleSave = () => {
-    if (!formData.description || !formData.amount || !formData.project || !formData.client_name) {
-      alert("Please fill all required fields");
-      return;
-    }
+  const openView = (id: string) => { setSelectedId(id); setViewDialog(true); };
 
-    const amountNum = parseFloat(formData.amount);
-    if (amountNum <= 0) {
-      alert("Amount must be greater than 0");
-      return;
-    }
-
-    createRevenue.mutate({
-      date: formData.date,
-      client_name: formData.client_name,
-      description: formData.description,
-      amount: formData.amount.toString(),
-      project: formData.project,
+  const openEdit = (rev: any) => {
+    setEditForm({
+      description: rev.description, amount: rev.amount,
+      project: rev.project ?? "", date: rev.date, client_name: rev.client_name ?? "",
     });
-
-    setOpenDialog(false);
+    setSelectedId(rev.id);
+    setEditErrors({});
+    setEditDialog(true);
   };
 
-  const handleDeleteRevenue = (revenueId: string) => {
-    alert("Delete functionality will be implemented when API is ready");
-    setShowDeleteConfirm(null);
-  };
+  const clearFilters = () => { setSearchTerm(""); setProjectFilter("all"); setDateRange({ start: "", end: "" }); setCurrentPage(1); };
 
-  const clearFilters = () => {
-    setSearchTerm("");
-    setProjectFilter("all");
-    setDateRange({ start: "", end: "" });
-    setCurrentPage(1);
-  };
+  const hasFilters = debouncedSearch || projectFilter !== "all" || dateRange.start || dateRange.end;
 
-  const handleExportData = () => {
-    const exportData = filteredRevenue.map(item => {
-      const project = projects.find(p => p.id === item.project);
-      return {
-        Date: item.date,
-        'Client Name': item.client_name || 'N/A',
-        Description: item.description,
-        Amount: `₹${parseFloat(item.amount).toLocaleString()}`,
-        Project: project?.name || item.project,
-      };
-    });
+  /* category bar chart max */
+  const maxCat = Math.max(...Object.values(stats.breakdown), 1);
 
-    const headers = Object.keys(exportData[0] || {});
-    const csvRows = [
-      headers.join(','),
-      ...exportData.map(row => headers.map(header => `"${row[header as keyof typeof row] || ''}"`).join(','))
-    ];
-    const csvString = csvRows.join('\n');
-    const blob = new Blob([csvString], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `revenue_${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  if (revenueLoading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-500">Loading revenue records...</p>
-          </div>
+  /* ── loading ── */
+  if (isLoading) return (
+    <Layout>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-[3px] border-emerald-200 border-t-emerald-500 rounded-full animate-spin" />
+          <p className="text-sm text-slate-400 font-medium tracking-wide">Loading revenue…</p>
         </div>
-      </Layout>
-    );
-  }
+      </div>
+    </Layout>
+  );
 
   return (
     <Layout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Revenue</h1>
-            <p className="text-gray-500 mt-1">Track and manage all revenue streams</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={handleExportData}
-              variant="outline"
-              className="gap-2 border-gray-300 hover:border-indigo-300 hover:bg-indigo-50"
-              disabled={filteredRevenue.length === 0}
-            >
-              <Download className="w-4 h-4" />
-              Export
-            </Button>
-            <Button
-              onClick={handleOpenDialog}
-              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-lg hover:shadow-xl transition-all duration-200 gap-2"
-              disabled={createRevenue.isPending}
-            >
-              <Plus className="w-4 h-4" />
-              Add Revenue
-            </Button>
-          </div>
-        </div>
+      <div className="min-h-screen bg-slate-50/40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-7">
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Total Revenue</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
-                  ₹{stats.totalAmount.toLocaleString()}
-                </p>
+          {/* ── HEADER ── */}
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-1 h-6 bg-emerald-500 rounded-full" />
+                <span className="text-[10px] font-bold tracking-[.2em] uppercase text-emerald-600">Construction CMS</span>
               </div>
-              <div className="bg-emerald-50 p-3 rounded-xl">
-                <Wallet className="w-6 h-6 text-emerald-600" />
-              </div>
+              <h1 className="text-[2rem] font-extrabold text-slate-900 leading-tight tracking-tight">Revenue</h1>
+              <p className="text-slate-400 text-sm mt-0.5">Track and manage all income streams</p>
             </div>
-            <div className="mt-3 text-xs text-gray-400">
-              {stats.transactionCount} transactions
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Average Revenue</p>
-                <p className="text-2xl font-bold text-blue-600 mt-1">
-                  ₹{Math.round(stats.averageRevenue).toLocaleString()}
-                </p>
-              </div>
-              <div className="bg-blue-50 p-3 rounded-xl">
-                <TrendingUp className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-            <div className="mt-3 text-xs text-gray-400">
-              Per transaction
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Highest Revenue</p>
-                <p className="text-2xl font-bold text-purple-600 mt-1">
-                  ₹{stats.highestRevenue.toLocaleString()}
-                </p>
-              </div>
-              <div className="bg-purple-50 p-3 rounded-xl">
-                <DollarSign className="w-6 h-6 text-purple-600" />
-              </div>
-            </div>
-            <div className="mt-3 text-xs text-gray-400">
-              Single transaction
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Active Projects</p>
-                <p className="text-2xl font-bold text-indigo-600 mt-1">
-                  {stats.projectRevenue.length}
-                </p>
-              </div>
-              <div className="bg-indigo-50 p-3 rounded-xl">
-                <Building2 className="w-6 h-6 text-indigo-600" />
-              </div>
-            </div>
-            <div className="mt-3 text-xs text-gray-400">
-              With revenue
-            </div>
-          </div>
-        </div>
-
-        {/* Project Revenue Breakdown */}
-        {stats.projectRevenue.length > 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Revenue by Project</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {stats.projectRevenue.slice(0, 6).map((project) => (
-                <div key={project.name} className="flex items-center justify-between p-2 rounded-lg bg-gray-50">
-                  <span className="text-sm text-gray-700">{project.name}</span>
-                  <span className="text-sm font-bold text-emerald-600">₹{project.total.toLocaleString()}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Filters Bar */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  placeholder="Search by description or client name..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="pl-10 border-gray-200 focus:border-indigo-300 focus:ring-indigo-200"
-                />
-              </div>
-
-              <select
-                value={projectFilter}
-                onChange={(e) => {
-                  setProjectFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => exportRevenue.mutate({ start_date: dateRange.start || undefined, end_date: dateRange.end || undefined })}
+                disabled={exportRevenue.isPending}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-50"
               >
-                <option value="all">All Projects</option>
-                {projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  type="date"
-                  placeholder="Start Date"
-                  value={dateRange.start}
-                  onChange={(e) => {
-                    setDateRange({ ...dateRange, start: e.target.value });
-                    setCurrentPage(1);
-                  }}
-                  className="pl-10 w-full sm:w-40 border-gray-200"
-                />
-              </div>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  type="date"
-                  placeholder="End Date"
-                  value={dateRange.end}
-                  onChange={(e) => {
-                    setDateRange({ ...dateRange, end: e.target.value });
-                    setCurrentPage(1);
-                  }}
-                  className="pl-10 w-full sm:w-40 border-gray-200"
-                />
-              </div>
-            </div>
-
-            {(searchTerm || projectFilter !== "all" || dateRange.start || dateRange.end) && (
-              <div className="flex items-center justify-between">
-                <div className="flex flex-wrap gap-2">
-                  {searchTerm && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-700 text-xs rounded-lg">
-                      Search: {searchTerm}
-                      <button onClick={() => setSearchTerm("")} className="hover:text-emerald-900">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {projectFilter !== "all" && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-700 text-xs rounded-lg">
-                      Project: {projects.find(p => p.id === projectFilter)?.name}
-                      <button onClick={() => setProjectFilter("all")}>
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {dateRange.start && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-700 text-xs rounded-lg">
-                      From: {dateRange.start}
-                      <button onClick={() => setDateRange({ ...dateRange, start: "" })}>
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {dateRange.end && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-700 text-xs rounded-lg">
-                      To: {dateRange.end}
-                      <button onClick={() => setDateRange({ ...dateRange, end: "" })}>
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearFilters}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  Clear all
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Revenue Table */}
-        {paginatedRevenue.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <DollarSign className="w-8 h-8 text-gray-400" />
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-1">No revenue records found</h3>
-            <p className="text-gray-500 mb-4">
-              {searchTerm || projectFilter !== "all" || dateRange.start || dateRange.end
-                ? "Try adjusting your filters"
-                : "Get started by adding your first revenue entry"}
-            </p>
-            {!searchTerm && projectFilter === "all" && !dateRange.start && !dateRange.end && (
-              <Button onClick={handleOpenDialog} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+                <Download className="w-4 h-4" />
+                {exportRevenue.isPending ? "Exporting…" : "Export CSV"}
+              </button>
+              <button
+                onClick={openAdd}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 active:scale-95 transition-all shadow-sm"
+              >
                 <Plus className="w-4 h-4" />
                 Add Revenue
-              </Button>
-            )}
+              </button>
+            </div>
           </div>
-        ) : (
-          <>
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-gradient-to-r from-gray-50 to-white border-b border-gray-200">
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Date</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Client Name</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Description</th>
-                      <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700">Amount</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Project</th>
-                      <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedRevenue.map((item) => {
-                      const project = projects.find(p => p.id === item.project);
-                      return (
-                        <tr
-                          key={item.id}
-                          className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                        >
-                          <td className="px-6 py-4 text-sm text-gray-900">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="w-3 h-3 text-gray-400" />
-                              {new Date(item.date).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric'
-                              })}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                            <div className="flex items-center gap-2">
-                              <User className="w-3 h-3 text-gray-400" />
-                              {item.client_name || 'N/A'}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">
-                            {item.description}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-right font-bold text-emerald-600">
-                            ₹{parseFloat(item.amount).toLocaleString()}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-600">
-                            {project?.name || item.project}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-center">
-                            <button
-                              onClick={() => setShowDeleteConfirm(item.id)}
-                              className="p-1.5 hover:bg-red-50 rounded-lg transition-colors text-red-500 hover:text-red-700"
-                              title="Delete revenue"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot className="bg-gray-50 border-t border-gray-200">
-                    <tr>
-                      <td colSpan={3} className="px-6 py-4 text-sm font-semibold text-gray-900">
-                        Total Revenue
-                      </td>
-                      <td className="px-6 py-4 text-right text-lg font-bold text-emerald-600">
-                        ₹{filteredRevenue.reduce((sum, item) => sum + parseFloat(item.amount), 0).toLocaleString()}
-                      </td>
-                      <td colSpan={2}></td>
-                    </tr>
-                  </tfoot>
-                </table>
+
+          {/* ── STATS ── */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard label="Total Revenue" value={fmtINR(stats.total)} sub={`${stats.count} transactions`} accent="bg-emerald-50" iconColor="text-emerald-600" icon={<Wallet className="w-5 h-5" />} />
+            <StatCard label="Average" value={fmtINR(stats.average)} sub="Per transaction" accent="bg-blue-50" iconColor="text-blue-600" icon={<TrendingUp className="w-5 h-5" />} />
+            <StatCard label="Highest" value={fmtINR(stats.highest)} sub="Single transaction" accent="bg-violet-50" iconColor="text-violet-600" icon={<ArrowUpRight className="w-5 h-5" />} />
+            <StatCard label="Total Records" value={(stats.count)} sub="Count" accent="bg-amber-50" iconColor="text-amber-600" icon={<PieChart className="w-5 h-5" />} />
+          </div>
+
+          {/* ── CATEGORY BREAKDOWN ── */}
+
+
+          {/* ── FILTER BAR ── */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* search */}
+              <div className="relative flex-1">
+                {isDebouncing
+                  ? <div className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-slate-200 border-t-emerald-500 rounded-full animate-spin" />
+                  : <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />}
+                <Input value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                  placeholder="Search by description or client…"
+                  className="pl-10 rounded-xl border-slate-200 focus-visible:ring-emerald-300 bg-slate-50 focus:bg-white transition-colors"
+                />
               </div>
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between pt-4">
-                <div className="text-sm text-gray-500">
-                  Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredRevenue.length)} of {filteredRevenue.length} records
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="gap-1"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                    Previous
-                  </Button>
-                  <div className="flex gap-1">
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      let pageNum;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = currentPage - 2 + i;
-                      }
-                      return (
-                        <Button
-                          key={pageNum}
-                          variant={currentPage === pageNum ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setCurrentPage(pageNum)}
-                          className={`w-9 ${currentPage === pageNum ? "bg-emerald-600" : ""}`}
-                        >
-                          {pageNum}
-                        </Button>
-                      );
-                    })}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="gap-1"
-                  >
-                    Next
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* Add Revenue Dialog */}
-      <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Add New Revenue</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Client Name <span className="text-red-500">*</span>
-              </label>
-              <Input
-                value={formData.client_name}
-                onChange={(e) => setFormData({ ...formData, client_name: e.target.value })}
-                placeholder="Enter client name"
-                className="border-gray-200"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Enter revenue description"
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Amount (₹) <span className="text-red-500">*</span>
-              </label>
-              <Input
-                type="number"
-                value={formData.amount}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    amount: e.target.value,
-                  })
-                }
-                placeholder="Enter amount"
-                className="border-gray-200"
-                min="0"
-                step="0.01"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Project <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={formData.project}
-                onChange={(e) => setFormData({ ...formData, project: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-              >
-                {projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
+              {/* project select */}
+              <select value={projectFilter} onChange={e => { setProjectFilter(e.target.value); setCurrentPage(1); }}
+                className="px-3 py-2 rounded-xl border border-slate-200 text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-300">
+                <option value="all">All Projects</option>
+                {projects.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Date <span className="text-red-500">*</span>
-              </label>
-              <Input
-                type="date"
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                className="border-gray-200"
-                max={new Date().toISOString().split("T")[0]}
-              />
+            {/* date range */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input type="date" value={dateRange.start}
+                  onChange={e => { setDateRange({ ...dateRange, start: e.target.value }); setCurrentPage(1); }}
+                  className="pl-10 rounded-xl border-slate-200 focus-visible:ring-emerald-300 w-full sm:w-44"
+                />
+              </div>
+              <div className="flex items-center text-slate-300 text-sm px-1 hidden sm:flex">→</div>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input type="date" value={dateRange.end}
+                  onChange={e => { setDateRange({ ...dateRange, end: e.target.value }); setCurrentPage(1); }}
+                  className="pl-10 rounded-xl border-slate-200 focus-visible:ring-emerald-300 w-full sm:w-44"
+                />
+              </div>
+              {hasFilters && (
+                <button onClick={clearFilters}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-slate-500 hover:text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all ml-auto">
+                  <X className="w-3.5 h-3.5" /> Clear all
+                </button>
+              )}
             </div>
+
+            {/* active filter chips */}
+            {hasFilters && (
+              <div className="flex flex-wrap gap-2">
+                {[
+                  debouncedSearch && { label: `"${debouncedSearch}"`, onRemove: () => setSearchTerm("") },
+                  projectFilter !== "all" && { label: projects.find((p: any) => p.id === projectFilter)?.name ?? projectFilter, onRemove: () => setProjectFilter("all") },
+                  dateRange.start && { label: `From ${dateRange.start}`, onRemove: () => setDateRange(d => ({ ...d, start: "" })) },
+                  dateRange.end && { label: `To ${dateRange.end}`, onRemove: () => setDateRange(d => ({ ...d, end: "" })) },
+                ].filter(Boolean).map((chip: any, i) => (
+                  <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold rounded-full">
+                    {chip.label}
+                    <button onClick={chip.onRemove} className="hover:text-emerald-900"><X className="w-2.5 h-2.5" /></button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
-          <DialogFooter className="gap-3">
-            <Button variant="outline" onClick={() => setOpenDialog(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSave}
-              className="bg-emerald-600 hover:bg-emerald-700"
-              disabled={createRevenue.isPending}
-            >
-              {createRevenue.isPending ? "Adding..." : "Add Revenue"}
+          {/* ── TABLE ── */}
+          {revenues.length === 0 ? (
+            <div className="bg-white border border-slate-200 rounded-2xl p-16 text-center shadow-sm">
+              <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <DollarSign className="w-8 h-8 text-slate-300" />
+              </div>
+              <h3 className="text-base font-semibold text-slate-700 mb-1">No revenue records found</h3>
+              <p className="text-sm text-slate-400 mb-5">
+                {hasFilters ? "Try adjusting your filters" : "Get started by recording your first revenue entry"}
+              </p>
+              {!hasFilters && (
+                <button onClick={openAdd} className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 transition-all">
+                  <Plus className="w-4 h-4" /> Add Revenue
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50/70">
+                        {["Date", "Client", "Description", "Project", "Amount", ""].map((h, i) => (
+                          <th key={i} className={`px-5 py-3.5 text-[10px] font-bold tracking-[.15em] uppercase text-slate-400 ${i === 5 ? "text-right" : i === 6 ? "text-center" : "text-left"}`}>
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {revenues.map((rev: any) => (
+                        <tr key={rev.id} className="hover:bg-slate-50/80 transition-colors group">
+                          <td className="px-5 py-3.5 text-slate-500 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
+                              {new Date(rev.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                            </div>
+                          </td>
+                          <td className="px-5 py-3.5 font-medium text-slate-800">
+                            {rev.client_name || "—"}
+                          </td>
+                          <td className="px-5 py-3.5 text-slate-600 max-w-[200px] truncate">
+                            {rev.description}
+                          </td>
+                          <td className="px-5 py-3.5 text-slate-500 max-w-[140px] truncate">
+                            {projects.find((p: any) => p.id === rev.project)?.name ?? rev.project ?? "—"}
+                          </td>
+                          <td className="px-5 py-3.5 text-right font-bold text-emerald-600 tabular-nums whitespace-nowrap">
+                            ₹{parseFloat(rev.amount).toLocaleString("en-IN")}
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <div className="flex items-center justify-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => openView(rev.id)} className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50 transition-colors" title="View"><Eye className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => openEdit(rev)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors" title="Edit"><Edit2 className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => setShowDeleteConfirm(rev.id)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-slate-200 bg-slate-50/70">
+                        <td colSpan={5} className="px-5 py-3.5 text-[11px] font-bold tracking-[.12em] uppercase text-slate-400">
+                          Page Total
+                        </td>
+                        <td className="px-5 py-3.5 text-right font-extrabold text-slate-900 tabular-nums">
+                          ₹{revenues.reduce((s: number, e: any) => s + parseFloat(e.amount), 0).toLocaleString("en-IN")}
+                        </td>
+                        <td />
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+
+              {/* ── PAGINATION ── */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-slate-400">
+                    {(currentPage - 1) * 10 + 1}–{Math.min(currentPage * 10, totalCount)} of <span className="font-semibold text-slate-600">{totalCount}</span> revenues
+                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
+                      className="p-2 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let n: number;
+                      if (totalPages <= 5) n = i + 1;
+                      else if (currentPage <= 3) n = i + 1;
+                      else if (currentPage >= totalPages - 2) n = totalPages - 4 + i;
+                      else n = currentPage - 2 + i;
+                      return (
+                        <button key={n} onClick={() => setCurrentPage(n)}
+                          className={`w-9 h-9 rounded-xl text-sm font-semibold transition-all ${currentPage === n ? "bg-emerald-600 text-white" : "border border-slate-200 text-slate-500 hover:bg-slate-50"}`}>
+                          {n}
+                        </button>
+                      );
+                    })}
+                    <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
+                      className="p-2 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* ── ADD DIALOG ── */}
+      <Dialog open={openDialog} onOpenChange={setOpenDialog}>
+        <DialogContent className="sm:max-w-md rounded-2xl border-slate-200 shadow-xl">
+          <DialogHeader className="pb-2">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-emerald-600 rounded-xl flex items-center justify-center">
+                <Plus className="w-4 h-4 text-white" />
+              </div>
+              <DialogTitle className="text-lg font-bold text-slate-900">New Revenue</DialogTitle>
+            </div>
+          </DialogHeader>
+          <RevenueFormBody form={form} setForm={setForm} errors={formErrors} setErrors={setFormErrors} projects={projects} revenues={revenues} />
+          <DialogFooter className="gap-2 pt-4">
+            <Button variant="outline" onClick={() => setOpenDialog(false)} className="rounded-xl border-slate-200 text-slate-600">Cancel</Button>
+            <Button onClick={handleAdd} disabled={createRevenue.isPending} className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6">
+              {createRevenue.isPending ? "Saving…" : "Add Revenue"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                <Trash2 className="w-5 h-5 text-red-600" />
+      {/* ── EDIT DIALOG ── */}
+      <Dialog open={editDialog} onOpenChange={setEditDialog}>
+        <DialogContent className="sm:max-w-md rounded-2xl border-slate-200 shadow-xl">
+          <DialogHeader className="pb-2">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-emerald-600 rounded-xl flex items-center justify-center">
+                <Edit2 className="w-4 h-4 text-white" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900">Delete Revenue Record</h3>
+              <DialogTitle className="text-lg font-bold text-slate-900">Edit Revenue</DialogTitle>
             </div>
+          </DialogHeader>
+          <RevenueFormBody form={editForm} setForm={setEditForm} errors={editErrors} setErrors={setEditErrors} projects={projects} revenues={revenues} />
+          <DialogFooter className="gap-2 pt-4">
+            <Button variant="outline" onClick={() => setEditDialog(false)} className="rounded-xl border-slate-200 text-slate-600">Cancel</Button>
+            <Button onClick={handleEdit} disabled={updateRevenue.isPending} className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6">
+              {updateRevenue.isPending ? "Saving…" : "Update Revenue"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to delete this revenue record? This action cannot be undone.
+      {/* ── VIEW DIALOG ── */}
+      <Dialog open={viewDialog} onOpenChange={v => { setViewDialog(v); if (!v) setSelectedId(null); }}>
+        <DialogContent className="sm:max-w-md rounded-2xl border-slate-200 shadow-xl">
+          <DialogHeader className="pb-2">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-slate-100 rounded-xl flex items-center justify-center">
+                <Eye className="w-4 h-4 text-slate-600" />
+              </div>
+              <DialogTitle className="text-lg font-bold text-slate-900">Revenue Details</DialogTitle>
+            </div>
+          </DialogHeader>
+          {selectedLoading ? (
+            <div className="flex items-center justify-center py-10">
+              <div className="w-7 h-7 border-2 border-emerald-200 border-t-emerald-500 rounded-full animate-spin" />
+            </div>
+          ) : selectedData?.data ? (
+            <div className="space-y-4 py-2">
+              {/* amount hero */}
+              <div className="bg-emerald-600 rounded-2xl p-5 text-center">
+                <p className="text-[10px] font-bold tracking-[.18em] uppercase text-emerald-100 mb-1">Amount</p>
+                <p className="text-4xl font-extrabold text-white tabular-nums">
+                  ₹{parseFloat(selectedData.data.amount).toLocaleString("en-IN")}
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                {[
+                  { label: "Description", value: selectedData.data.description },
+                  { label: "Client Name", value: selectedData.data.client_name ?? "—" },
+                  { label: "Date", value: new Date(selectedData.data.date).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) },
+                  { label: "Project", value: projects.find((p: any) => p.id === selectedData.data.project)?.name ?? "—" },
+                  { label: "Created", value: new Date(selectedData.data.created_at).toLocaleString() },
+                  { label: "Updated", value: new Date(selectedData.data.updated_at).toLocaleString() },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex items-start justify-between gap-4">
+                    <span className="text-[11px] font-bold tracking-wide uppercase text-slate-400 flex-shrink-0">{label}</span>
+                    <span className="text-sm font-semibold text-slate-700 text-right">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="text-center text-slate-400 py-10 text-sm">Revenue record not found.</p>
+          )}
+          <DialogFooter className="pt-2">
+            <Button onClick={() => { setViewDialog(false); setSelectedId(null); }} className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold w-full">Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── DELETE CONFIRM ── */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-slate-100">
+            <div className="w-12 h-12 bg-rose-50 rounded-2xl flex items-center justify-center mb-4 border border-rose-100">
+              <Trash2 className="w-5 h-5 text-rose-500" />
+            </div>
+            <h3 className="text-base font-bold text-slate-900 mb-1">Delete revenue record?</h3>
+            <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+              This record will be permanently removed. This action cannot be undone.
             </p>
-
             <div className="flex gap-3">
-              <Button
-                onClick={() => setShowDeleteConfirm(null)}
-                variant="outline"
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => handleDeleteRevenue(showDeleteConfirm)}
-                className="flex-1 bg-red-600 hover:bg-red-700"
-              >
-                Delete
-              </Button>
+              <button onClick={() => setShowDeleteConfirm(null)} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
+              <button onClick={() => handleDelete(showDeleteConfirm)} disabled={deleteRevenue.isPending}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-rose-600 text-white text-sm font-bold hover:bg-rose-700 disabled:opacity-60 transition-all">
+                {deleteRevenue.isPending ? "Deleting…" : "Delete"}
+              </button>
             </div>
           </div>
         </div>

@@ -1,51 +1,108 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Plus,
-  Edit2,
-  Trash2,
-  Search,
-  Calendar,
-  DollarSign,
-  Target,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  X,
-  ChevronLeft,
-  ChevronRight,
-  Building2,
-  User,
-  MapPin,
-  Briefcase,
-  Eye
+  Plus, Edit2, Trash2, Search, Calendar, DollarSign,
+  Target, Clock, CheckCircle, AlertCircle, X,
+  ChevronLeft, ChevronRight, Building2, User, MapPin,
+  Download, TrendingUp, Layers
 } from "lucide-react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { useListProjects, useCreateProject, useUpdateProject, useDeleteProject, useProjectStats, useExportProjects } from "../index";
+import {
+  useListProjects, useCreateProject, useUpdateProject,
+  useDeleteProject, useProjectStats, useExportProjects,
+} from "../index";
+
+/* ─────────────────────────────── helpers ─────────────────────────────── */
+
+const STATUS_META = {
+  ongoing: { label: "Ongoing", bg: "bg-sky-50", text: "text-sky-700", border: "border-sky-200", dot: "bg-sky-500" },
+  completed: { label: "Completed", bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200", dot: "bg-emerald-500" },
+  delayed: { label: "Delayed", bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-200", dot: "bg-rose-500" },
+} as const;
+
+const StatusBadge = ({ status }: { status: keyof typeof STATUS_META }) => {
+  const m = STATUS_META[status] ?? STATUS_META.ongoing;
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide border ${m.bg} ${m.text} ${m.border}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${m.dot}`} />
+      {m.label}
+    </span>
+  );
+};
+
+const getProgress = (startDate: string) => {
+  const elapsed = Math.max(0, (Date.now() - new Date(startDate).getTime()) / 86_400_000);
+  return Math.min(100, Math.floor((elapsed / 365) * 100));
+};
+
+const fmt = (n: number) =>
+  n >= 1e5 ? `₹${(n / 1e5).toFixed(1)}L` : `₹${n.toLocaleString("en-IN")}`;
+
+/* ─────────────────────────────── stat card ─────────────────────────────── */
+
+interface StatCardProps {
+  label: string;
+  value: number | string;
+  icon: React.ReactNode;
+  accent: string;   /* Tailwind bg class for icon ring */
+  iconColor: string;
+  sub?: string;
+}
+const StatCard = ({ label, value, icon, accent, iconColor, sub }: StatCardProps) => (
+  <div className="group relative bg-white border border-slate-100 rounded-2xl p-5 shadow-sm overflow-hidden">
+    <div className="absolute inset-0 bg-gradient-to-br from-white to-slate-50/60 pointer-events-none" />
+    <div className="relative flex items-start justify-between">
+      <div>
+        <p className="text-xs font-semibold tracking-widest uppercase text-slate-400">{label}</p>
+        <p className="text-3xl font-bold text-slate-900 mt-1.5 tabular-nums">{value}</p>
+        {sub && <p className="text-[11px] text-slate-400 mt-1">{sub}</p>}
+      </div>
+      <div className={`${accent} p-2.5 rounded-xl`}>
+        <div className={`${iconColor} w-5 h-5`}>{icon}</div>
+      </div>
+    </div>
+  </div>
+);
+
+/* ─────────────────────────────── main page ─────────────────────────────── */
 
 export default function Projects() {
   const [openDialog, setOpenDialog] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [isSearchDebouncing, setIsSearchDebouncing] = useState(false);
   const [statusFilter, setStatusFilter] = useState<"all" | "ongoing" | "completed" | "delayed">("all");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
   const navigate = useNavigate();
 
-  const { data: projectsData, isLoading: projectsLoading } = useListProjects({
-    page: currentPage,
-    page_size: itemsPerPage,
-    ...(searchTerm && { search: searchTerm }),
+  // Validation errors
+  const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
+
+  // Debounce search term
+  useEffect(() => {
+    setIsSearchDebouncing(true);
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setIsSearchDebouncing(false);
+    }, 500); // 500ms delay
+
+    return () => {
+      clearTimeout(timer);
+      setIsSearchDebouncing(false);
+    };
+  }, [searchTerm]);
+
+  const { data: projectsData, isLoading } = useListProjects({
+    page: currentPage, page_size: itemsPerPage,
+    ...(debouncedSearchTerm && { search: debouncedSearchTerm }),
     ...(statusFilter !== "all" && { status: statusFilter }),
   });
   const { data: statsData } = useProjectStats();
@@ -54,693 +111,485 @@ export default function Projects() {
   const deleteProject = useDeleteProject();
   const exportProjects = useExportProjects();
 
-  const projects = projectsData?.data || [];
+  const projects = projectsData?.data ?? [];
   const stats = statsData?.data;
+  const pagination = projectsData?.pagination;
+  const totalPages = pagination?.total_pages ?? 1;
 
-  const [formData, setFormData] = useState({
-    name: "",
-    client_name: "",
-    location: "",
-    description: "",
-    start_date: "",
-    status: "ongoing" as "ongoing" | "completed" | "delayed",
-    budget: 0,
+  const [form, setForm] = useState({
+    name: "", client_name: "", location: "", description: "",
+    start_date: "", status: "ongoing" as "ongoing" | "completed" | "delayed", budget: 0,
   });
 
-  // Get pagination info from API response
-  const pagination = projectsData?.pagination;
-  const totalPages = pagination?.total_pages || 1;
-  const displayedProjects = projects; // API already returns paginated results
-
-  // Sync currentPage with API pagination
   useEffect(() => {
-    if (pagination?.page && pagination.page !== currentPage) {
-      setCurrentPage(pagination.page);
-    }
-  }, [pagination?.page, currentPage]);
+    if (pagination?.page && pagination.page !== currentPage) setCurrentPage(pagination.page);
+  }, [pagination?.page]);
 
-  const handleOpenDialog = (projectId?: string) => {
-    if (projectId) {
-      const project = projects.find((p) => p.id === projectId);
-      if (project) {
-        setFormData({
-          name: project.name,
-          client_name: project.client_name || "",
-          location: project.location || "",
-          description: project.description || "",
-          start_date: project.start_date,
-          status: project.status,
-          budget: project.budget,
-        });
-        setEditingId(projectId);
-      }
+  const openEdit = (id?: string) => {
+    if (id) {
+      const p = projects.find(x => x.id === id);
+      if (p) { setForm({ name: p.name, client_name: p.client_name ?? "", location: p.location ?? "", description: p.description ?? "", start_date: p.start_date, status: p.status, budget: p.budget }); setEditingId(id); }
     } else {
-      setFormData({
-        name: "",
-        client_name: "",
-        location: "",
-        description: "",
-        start_date: "",
-        status: "ongoing",
-        budget: 0,
-      });
+      setForm({ name: "", client_name: "", location: "", description: "", start_date: "", status: "ongoing", budget: 0 });
       setEditingId(null);
     }
     setOpenDialog(true);
   };
 
+  const validateProjectForm = (data: typeof form) => {
+    const errors: {[key: string]: string} = {};
+
+    if (!data.name?.trim()) {
+      errors.name = "Project name is required";
+    }
+    if (!data.client_name?.trim()) {
+      errors.client_name = "Client name is required";
+    }
+    if (!data.location?.trim()) {
+      errors.location = "Location is required";
+    }
+    if (!data.description?.trim()) {
+      errors.description = "Description is required";
+    }
+    if (!data.start_date) {
+      errors.start_date = "Start date is required";
+    }
+    if (!data.budget || data.budget <= 0) {
+      errors.budget = "Budget must be greater than 0";
+    }
+
+    return errors;
+  };
+
   const handleSave = () => {
-    if (
-      !formData.name ||
-      !formData.client_name ||
-      !formData.location ||
-      !formData.description ||
-      !formData.start_date ||
-      formData.budget === 0
-    ) {
-      alert("Please fill all required fields");
+    const errors = validateProjectForm(form);
+    setFormErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
       return;
     }
 
-    if (editingId) {
-      // Update existing project
-      updateProject.mutate({
-        id: editingId,
-        data: {
-          name: formData.name,
-          client_name: formData.client_name,
-          location: formData.location,
-          description: formData.description,
-          start_date: formData.start_date,
-          status: formData.status,
-          budget: formData.budget,
-        },
-      });
-    } else {
-      // Create new project
-      createProject.mutate({
-        name: formData.name,
-        client_name: formData.client_name,
-        location: formData.location,
-        description: formData.description,
-        start_date: formData.start_date,
-        status: formData.status,
-        budget: formData.budget,
-      });
-    }
-
+    if (editingId) updateProject.mutate({ id: editingId, data: form });
+    else createProject.mutate(form);
     setOpenDialog(false);
-    setFormData({
-      name: "",
-      client_name: "",
-      location: "",
-      description: "",
-      start_date: "",
-      status: "ongoing",
-      budget: 0,
-    });
+    setFormErrors({});
     setEditingId(null);
   };
 
+  const handleDelete = (id: string) => deleteProject.mutate(id, { onSuccess: () => setShowDeleteConfirm(null) });
 
-
-  const handleMarkAsCompleted = (projectId: string) => {
-    updateProject.mutate({
-      id: projectId,
-      data: { status: "completed" },
-    });
-  };
-
-  const handleDeleteProject = (projectId: string) => {
-    deleteProject.mutate(projectId, {
-      onSuccess: () => {
-        setShowDeleteConfirm(null);
-      },
-    });
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "ongoing":
-        return "bg-blue-100 text-blue-700 border-blue-200";
-      case "completed":
-        return "bg-green-100 text-green-700 border-green-200";
-      case "delayed":
-        return "bg-red-100 text-red-700 border-red-200";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "ongoing":
-        return <Clock className="w-3 h-3" />;
-      case "completed":
-        return <CheckCircle className="w-3 h-3" />;
-      case "delayed":
-        return <AlertCircle className="w-3 h-3" />;
-      default:
-        return null;
-    }
-  };
-
-  const clearFilters = () => {
-    setSearchTerm("");
-    setStatusFilter("all");
-    setCurrentPage(1);
-  };
-
-  // Calculate project progress (mock calculation based on dates)
-  const getProjectProgress = (startDate: string) => {
-    const start = new Date(startDate);
-    const today = new Date();
-    const totalDuration = 365; // Assume 1 year project duration
-    const elapsed = Math.max(0, Math.min(totalDuration, Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))));
-    const progress = Math.min(100, Math.floor((elapsed / totalDuration) * 100));
-    return progress;
-  };
-
-  if (projectsLoading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-500">Loading projects...</p>
-          </div>
+  /* ── loading ── */
+  if (isLoading) return (
+    <Layout>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-[3px] border-amber-200 border-t-amber-500 rounded-full animate-spin" />
+          <p className="text-sm text-slate-400 font-medium tracking-wide">Loading projects…</p>
         </div>
-      </Layout>
-    );
-  }
+      </div>
+    </Layout>
+  );
 
+  /* ── render ── */
   return (
     <Layout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Projects</h1>
-            <p className="text-gray-500 mt-1">Manage and track all construction projects</p>
-          </div>
-          <div className="flex gap-3">
-            <Button
-              onClick={() => exportProjects.mutate({})}
-              variant="outline"
-              className="gap-2"
-              disabled={exportProjects.isPending}
-            >
-              <Eye className="w-4 h-4" />
-              {exportProjects.isPending ? "Exporting..." : "Export CSV"}
-            </Button>
-            <Button
-              onClick={() => handleOpenDialog()}
-              className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 shadow-lg hover:shadow-xl transition-all duration-200 gap-2"
-              disabled={createProject.isPending}
-            >
-              <Plus className="w-4 h-4" />
-              New Project
-            </Button>
-          </div>
-        </div>
+      <div className="min-h-screen bg-slate-50/40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
 
-        {/* Stats Cards */}
-        {stats && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Total Projects</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
-                </div>
-                <div className="bg-indigo-50 p-3 rounded-xl">
-                  <Building2 className="w-6 h-6 text-indigo-600" />
-                </div>
+          {/* ── PAGE HEADER ── */}
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-1 h-6 bg-amber-500 rounded-full" />
+                <span className="text-xs font-bold tracking-[0.2em] uppercase text-amber-600">Construction CMS</span>
               </div>
-              <div className="mt-3 text-xs text-gray-400">
-                All projects
-              </div>
+              <h1 className="text-[2rem] font-extrabold text-slate-900 leading-tight tracking-tight">Projects</h1>
+              <p className="text-slate-400 text-sm mt-0.5">Track and manage all construction projects</p>
             </div>
 
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Ongoing</p>
-                  <p className="text-2xl font-bold text-blue-600 mt-1">{stats.ongoing}</p>
-                </div>
-                <div className="bg-blue-50 p-3 rounded-xl">
-                  <Clock className="w-6 h-6 text-blue-600" />
-                </div>
-              </div>
-              <div className="mt-3 text-xs text-gray-400">
-                In progress
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Completed</p>
-                  <p className="text-2xl font-bold text-green-600 mt-1">{stats.by_status.completed}</p>
-                </div>
-                <div className="bg-green-50 p-3 rounded-xl">
-                  <CheckCircle className="w-6 h-6 text-green-600" />
-                </div>
-              </div>
-              <div className="mt-3 text-xs text-gray-400">
-                Successfully delivered
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Delayed</p>
-                  <p className="text-2xl font-bold text-red-600 mt-1">{stats.by_status.delayed || 0}</p>
-                </div>
-                <div className="bg-red-50 p-3 rounded-xl">
-                  <AlertCircle className="w-6 h-6 text-red-600" />
-                </div>
-              </div>
-              <div className="mt-3 text-xs text-gray-400">
-                Need attention
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Filters Bar */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                placeholder="Search by project name, client, or location..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="pl-10 border-gray-200 focus:border-indigo-300 focus:ring-indigo-200"
-              />
-            </div>
-
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value as typeof statusFilter);
-                setCurrentPage(1);
-              }}
-              className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
-            >
-              <option value="all">All Status</option>
-              <option value="ongoing">Ongoing</option>
-              <option value="completed">Completed</option>
-              <option value="delayed">Delayed</option>
-            </select>
-
-            {(searchTerm || statusFilter !== "all") && (
-              <Button
-                variant="outline"
-                onClick={clearFilters}
-                className="gap-2 border-gray-300 text-gray-600 hover:bg-gray-50"
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => exportProjects.mutate({})}
+                disabled={exportProjects.isPending}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-all disabled:opacity-50"
               >
-                <X className="w-4 h-4" />
-                Clear
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Projects Grid */}
-        {projects.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Building2 className="w-8 h-8 text-gray-400" />
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-1">No projects found</h3>
-            <p className="text-gray-500 mb-4">
-              {searchTerm || statusFilter !== "all"
-                ? "Try adjusting your filters"
-                : "Get started by creating your first project"}
-            </p>
-            {!searchTerm && statusFilter === "all" && (
-              <Button onClick={() => handleOpenDialog()} className="gap-2">
+                <Download className="w-4 h-4" />
+                {exportProjects.isPending ? "Exporting…" : "Export CSV"}
+              </button>
+              <button
+                onClick={() => openEdit()}
+                disabled={createProject.isPending}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 active:scale-95 transition-all shadow-sm"
+              >
                 <Plus className="w-4 h-4" />
-                Create Project
-              </Button>
-            )}
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5">
-              {projects.map((project) => (
-                <div
-                  key={project.id}
-                  className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden group"
-                >
-                  {/* Project Header */}
-                  <div className="p-5 border-b border-gray-100">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 text-lg mb-1 line-clamp-1">
-                          {project.name}
-                        </h3>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusColor(project.status)}`}>
-                            {getStatusIcon(project.status)}
-                            {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {project.status !== "completed" && (
-                          <button
-                            onClick={() => handleMarkAsCompleted(project.id)}
-                            className="p-2 hover:bg-green-50 rounded-lg transition-colors text-green-600"
-                            title="Mark as completed"
-                            disabled={updateProject.isPending}
-                          >
-                            <CheckCircle className="w-4 h-4" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleOpenDialog(project.id)}
-                          className="p-2 hover:bg-indigo-50 rounded-lg transition-colors text-indigo-600"
-                          title="Edit project"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => setShowDeleteConfirm(project.id)}
-                          className="p-2 hover:bg-red-50 rounded-lg transition-colors text-red-600"
-                          title="Delete project"
-                          disabled={deleteProject.isPending}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                    <p className="text-sm text-gray-600 line-clamp-2">
-                      {project.description}
-                    </p>
-                  </div>
-
-                  {/* Project Details */}
-                  <div className="p-5 space-y-3 bg-gray-50/30">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <User className="w-4 h-4 text-gray-400" />
-                        <span>Client</span>
-                      </div>
-                      <span className="text-sm font-medium text-gray-900">
-                        {project.client_name}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <MapPin className="w-4 h-4 text-gray-400" />
-                        <span>Location</span>
-                      </div>
-                      <span className="text-sm font-medium text-gray-900">
-                        {project.location}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <span>Start Date</span>
-                      </div>
-                      <span className="text-sm font-medium text-gray-900">
-                        {new Date(project.start_date).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric'
-                        })}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Target className="w-4 h-4 text-gray-400" />
-                        <span>Progress</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-indigo-500 rounded-full transition-all duration-500"
-                            style={{ width: `${getProjectProgress(project.start_date)}%` }}
-                          />
-                        </div>
-                        <span className="text-sm font-medium text-gray-900">
-                          {getProjectProgress(project.start_date)}%
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2 border-t border-gray-200">
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <DollarSign className="w-4 h-4 text-gray-400" />
-                        <span>Budget</span>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold text-indigo-600">
-                          ₹{(project.budget / 100000).toFixed(1)}L
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          ₹{project.budget.toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                New Project
+              </button>
             </div>
+          </div>
 
-            {/* Pagination */}
-            {pagination && pagination.total_pages > 1 && (
-              <div className="flex items-center justify-between pt-4">
-                <div className="text-sm text-gray-500">
-                  Showing {((pagination.page) - 1) * pagination.page_size + 1} to {Math.min(pagination.page * pagination.page_size, pagination.total)} of {pagination.total} projects
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={!pagination.has_previous}
-                    className="gap-1"
+          {/* ── STATS ── */}
+          {stats && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <StatCard label="Total" value={stats.total} icon={<Layers className="w-5 h-5" />} accent="bg-slate-100" iconColor="text-slate-600" sub="All projects" />
+              <StatCard label="Ongoing" value={stats.ongoing} icon={<Clock className="w-5 h-5" />} accent="bg-sky-100" iconColor="text-sky-600" sub="In progress" />
+              <StatCard label="Completed" value={stats.by_status.completed} icon={<CheckCircle className="w-5 h-5" />} accent="bg-emerald-100" iconColor="text-emerald-600" sub="Delivered" />
+              <StatCard label="Delayed" value={stats.by_status.delayed ?? 0} icon={<AlertCircle className="w-5 h-5" />} accent="bg-rose-100" iconColor="text-rose-600" sub="Need attention" />
+            </div>
+          )}
+
+          {/* ── FILTER BAR ── */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input
+                  placeholder="Search by project name, client, or location…"
+                  value={searchTerm}
+                  onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                  className="pl-10 pr-10 border-slate-200 rounded-xl focus-visible:ring-amber-300 bg-slate-50 focus:bg-white transition-colors"
+                />
+                {isSearchDebouncing && (
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4">
+                    <div className="w-4 h-4 border-2 border-slate-300 border-t-amber-500 rounded-full animate-spin"></div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                {(["all", "ongoing", "completed", "delayed"] as const).map(s => (
+                  <button
+                    key={s}
+                    onClick={() => { setStatusFilter(s); setCurrentPage(1); }}
+                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${statusFilter === s
+                      ? "bg-slate-900 text-white shadow-sm"
+                      : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                      }`}
                   >
-                    <ChevronLeft className="w-4 h-4" />
-                    Previous
-                  </Button>
-                  <div className="flex gap-1">
+                    {s === "all" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
+                  </button>
+                ))}
+              </div>
+
+              {(debouncedSearchTerm || statusFilter !== "all") && (
+                <button
+                  onClick={() => { setSearchTerm(""); setDebouncedSearchTerm(""); setStatusFilter("all"); setCurrentPage(1); }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-slate-500 hover:text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
+                >
+                  <X className="w-3.5 h-3.5" /> Clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* ── PROJECTS GRID ── */}
+          {projects.length === 0 ? (
+            <div className="bg-white border border-slate-200 rounded-2xl p-16 text-center shadow-sm">
+              <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Building2 className="w-8 h-8 text-slate-300" />
+              </div>
+              <h3 className="text-base font-semibold text-slate-700 mb-1">No projects found</h3>
+              <p className="text-sm text-slate-400 mb-5">
+                {debouncedSearchTerm || statusFilter !== "all" ? "Try adjusting your filters" : "Get started by creating your first project"}
+              </p>
+
+              {!debouncedSearchTerm && statusFilter === "all" && (
+                <button
+                  onClick={() => openEdit()}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white text-sm font-semibold rounded-xl hover:bg-slate-800 transition-all"
+                >
+                  <Plus className="w-4 h-4" /> Create Project
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5">
+                {projects.map((project) => {
+                  const progress = getProgress(project.start_date);
+                  const progressColor = progress < 40 ? "bg-sky-400" : progress < 75 ? "bg-amber-400" : "bg-emerald-400";
+                  return (
+                    <div key={project.id} className="group bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col overflow-hidden">
+
+                      {/* top accent bar */}
+                      <div className={`h-1 w-full ${project.status === "completed" ? "bg-emerald-400"
+                        : project.status === "delayed" ? "bg-rose-400"
+                          : "bg-amber-400"
+                        }`} />
+
+                      {/* header */}
+                      <div className="px-5 pt-4 pb-3 flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-base font-bold text-slate-900 leading-snug line-clamp-1 pr-2">{project.name}</h3>
+                          <div className="mt-1.5"><StatusBadge status={project.status} /></div>
+                        </div>
+                        <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-2 flex-shrink-0">
+                          {project.status !== "completed" && (
+                            <button
+                              onClick={() => updateProject.mutate({ id: project.id, data: { status: "completed" } })}
+                              title="Mark complete"
+                              className="p-1.5 rounded-lg text-emerald-500 hover:bg-emerald-50 transition-colors"
+                            ><CheckCircle className="w-4 h-4" /></button>
+                          )}
+                          <button onClick={() => openEdit(project.id)} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"><Edit2 className="w-4 h-4" /></button>
+                          <button onClick={() => setShowDeleteConfirm(project.id)} className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                      </div>
+
+                      <p className="px-5 text-[13px] text-slate-500 leading-relaxed line-clamp-2">{project.description}</p>
+
+                      {/* meta rows */}
+                      <div className="px-5 py-4 mt-2 border-t border-slate-100 space-y-2.5 flex-1">
+                        {[
+                          { icon: <User className="w-3.5 h-3.5" />, label: "Client", value: project.client_name },
+                          { icon: <MapPin className="w-3.5 h-3.5" />, label: "Location", value: project.location },
+                          { icon: <Calendar className="w-3.5 h-3.5" />, label: "Started", value: new Date(project.start_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) },
+                        ].map(({ icon, label, value }) => (
+                          <div key={label} className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-slate-400">
+                              {icon}
+                              <span className="text-[12px] font-medium">{label}</span>
+                            </div>
+                            <span className="text-[12px] font-semibold text-slate-700 max-w-[55%] text-right truncate">{value}</span>
+                          </div>
+                        ))}
+
+                        {/* progress */}
+                        {/* <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-slate-400">
+                            <TrendingUp className="w-3.5 h-3.5" />
+                            <span className="text-[12px] font-medium">Progress</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full transition-all duration-700 ${progressColor}`} style={{ width: `${progress}%` }} />
+                            </div>
+                            <span className="text-[12px] font-bold text-slate-700 w-8 text-right">{progress}%</span>
+                          </div>
+                        </div> */}
+                      </div>
+
+                      {/* budget footer */}
+                      <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-slate-400">
+                          <DollarSign className="w-3.5 h-3.5" />
+                          <span className="text-[12px] font-medium">Budget</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-base font-extrabold text-slate-900">{fmt(project.budget)}</span>
+                          <span className="text-[11px] text-slate-400 ml-1.5">₹{project.budget.toLocaleString("en-IN")}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* ── PAGINATION ── */}
+              {pagination && pagination.total_pages > 1 && (
+                <div className="flex items-center justify-between pt-2">
+                  <p className="text-sm text-slate-400">
+                    {((pagination.page - 1) * pagination.page_size) + 1}–{Math.min(pagination.page * pagination.page_size, pagination.total)} of <span className="font-semibold text-slate-600">{pagination.total}</span> projects
+                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={!pagination.has_previous}
+                      className="p-2 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                    ><ChevronLeft className="w-4 h-4" /></button>
+
                     {Array.from({ length: Math.min(5, pagination.total_pages) }, (_, i) => {
-                      let pageNum;
-                      if (pagination.total_pages <= 5) {
-                        pageNum = i + 1;
-                      } else if (pagination.page <= 3) {
-                        pageNum = i + 1;
-                      } else if (pagination.page >= pagination.total_pages - 2) {
-                        pageNum = pagination.total_pages - 4 + i;
-                      } else {
-                        pageNum = pagination.page - 2 + i;
-                      }
+                      let n: number;
+                      if (pagination.total_pages <= 5) n = i + 1;
+                      else if (pagination.page <= 3) n = i + 1;
+                      else if (pagination.page >= pagination.total_pages - 2) n = pagination.total_pages - 4 + i;
+                      else n = pagination.page - 2 + i;
+                      const active = pagination.page === n;
                       return (
-                        <Button
-                          key={pageNum}
-                          variant={pagination.page === pageNum ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setCurrentPage(pageNum)}
-                          className={`w-9 ${pagination.page === pageNum ? "bg-indigo-600" : ""}`}
-                        >
-                          {pageNum}
-                        </Button>
+                        <button key={n} onClick={() => setCurrentPage(n)}
+                          className={`w-9 h-9 rounded-xl text-sm font-semibold transition-all ${active ? "bg-slate-900 text-white shadow-sm" : "border border-slate-200 text-slate-500 hover:bg-slate-50"
+                            }`}
+                        >{n}</button>
                       );
                     })}
+
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(pagination.total_pages, p + 1))}
+                      disabled={!pagination.has_next}
+                      className="p-2 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                    ><ChevronRight className="w-4 h-4" /></button>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.min(pagination.total_pages, p + 1))}
-                    disabled={!pagination.has_next}
-                    className="gap-1"
-                  >
-                    Next
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
                 </div>
-              </div>
-            )}
-          </>
-        )}
+              )}
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Add/Edit Project Dialog */}
+      {/* ── ADD / EDIT DIALOG ── */}
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">
-              {editingId ? "Edit Project" : "Create New Project"}
-            </DialogTitle>
+        <DialogContent className="sm:max-w-lg rounded-2xl border-slate-200 shadow-xl">
+          <DialogHeader className="pb-2">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-slate-900 rounded-xl flex items-center justify-center">
+                <Building2 className="w-4 h-4 text-white" />
+              </div>
+              <DialogTitle className="text-lg font-bold text-slate-900">
+                {editingId ? "Edit Project" : "New Project"}
+              </DialogTitle>
+            </div>
           </DialogHeader>
 
-          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Project Name <span className="text-red-500">*</span>
-              </label>
-              <Input
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Enter project name"
-                className="border-gray-200"
-              />
-            </div>
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+            {[
+              { key: "name", label: "Project Name", placeholder: "Enter project name" },
+              { key: "client_name", label: "Client Name", placeholder: "Enter client name" },
+              { key: "location", label: "Location", placeholder: "Enter project location" },
+            ].map(({ key, label, placeholder }) => (
+              <div key={key}>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                  {label} <span className="text-rose-400">*</span>
+                </label>
+                <Input
+                  value={(form as any)[key]}
+                  onChange={(e) => {
+                    setForm({ ...form, [key]: e.target.value });
+                    if (formErrors[key]) {
+                      setFormErrors({ ...formErrors, [key]: "" });
+                    }
+                  }}
+                  placeholder={placeholder}
+                  className={`border-slate-200 rounded-xl focus-visible:ring-amber-300 ${formErrors[key] ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}`}
+                />
+                {formErrors[key] && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors[key]}</p>
+                )}
+              </div>
+            ))}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Client Name <span className="text-red-500">*</span>
-              </label>
-              <Input
-                value={formData.client_name}
-                onChange={(e) => setFormData({ ...formData, client_name: e.target.value })}
-                placeholder="Enter client name"
-                className="border-gray-200"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Location <span className="text-red-500">*</span>
-              </label>
-              <Input
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                placeholder="Enter project location"
-                className="border-gray-200"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description <span className="text-red-500">*</span>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                Description <span className="text-rose-400">*</span>
               </label>
               <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Enter project description"
+                value={form.description}
+                onChange={(e) => {
+                  setForm({ ...form, description: e.target.value });
+                  if (formErrors.description) {
+                    setFormErrors({ ...formErrors, description: "" });
+                  }
+                }}
+                placeholder="Describe the project scope and objectives"
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                className={`w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-transparent resize-none bg-white text-slate-800 placeholder:text-slate-400 ${formErrors.description ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}`}
               />
+              {formErrors.description && (
+                <p className="text-red-500 text-xs mt-1">{formErrors.description}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                  Start Date <span className="text-rose-400">*</span>
+                </label>
+                <Input
+                  type="date"
+                  value={form.start_date}
+                  onChange={(e) => {
+                    setForm({ ...form, start_date: e.target.value });
+                    if (formErrors.start_date) {
+                      setFormErrors({ ...formErrors, start_date: "" });
+                    }
+                  }}
+                  className={`border-slate-200 rounded-xl focus-visible:ring-amber-300 ${formErrors.start_date ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}`}
+                />
+                {formErrors.start_date && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.start_date}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                  Status <span className="text-rose-400">*</span>
+                </label>
+                <select
+                  value={form.status}
+                  onChange={e => setForm({ ...form, status: e.target.value as any })}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 bg-white text-slate-800"
+                >
+                  <option value="ongoing">Ongoing</option>
+                  <option value="completed">Completed</option>
+                  <option value="delayed">Delayed</option>
+                </select>
+              </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Start Date <span className="text-red-500">*</span>
-              </label>
-              <Input
-                type="date"
-                value={formData.start_date}
-                onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                className="border-gray-200"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Status <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={formData.status}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    status: e.target.value as "ongoing" | "completed" | "delayed",
-                  })
-                }
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-              >
-                <option value="ongoing">Ongoing</option>
-                <option value="completed">Completed</option>
-                <option value="delayed">Delayed</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Budget (₹) <span className="text-red-500">*</span>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                Budget (₹) <span className="text-rose-400">*</span>
               </label>
               <Input
                 type="number"
-                value={formData.budget}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    budget: parseInt(e.target.value) || 0,
-                  })
-                }
-                placeholder="Enter budget amount"
-                className="border-gray-200"
+                value={form.budget || ""}
+                onChange={(e) => {
+                  setForm({ ...form, budget: parseInt(e.target.value) || 0 });
+                  if (formErrors.budget) {
+                    setFormErrors({ ...formErrors, budget: "" });
+                  }
+                }}
+                placeholder="e.g. 2500000"
+                className={`border-slate-200 rounded-xl focus-visible:ring-amber-300 ${formErrors.budget ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}`}
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Approximately ₹{(formData.budget / 100000).toFixed(1)} Lakhs
-              </p>
+              {formErrors.budget && (
+                <p className="text-red-500 text-xs mt-1">{formErrors.budget}</p>
+              )}
+              {form.budget > 0 && (
+                <p className="text-xs text-amber-600 font-semibold mt-1.5">
+                  ≈ {fmt(form.budget)}
+                </p>
+              )}
             </div>
           </div>
 
-          <DialogFooter className="gap-3">
-            <Button variant="outline" onClick={() => setOpenDialog(false)}>
+          <DialogFooter className="gap-2 pt-2">
+            <Button variant="outline" onClick={() => setOpenDialog(false)} className="rounded-xl border-slate-200 text-slate-600">
               Cancel
             </Button>
             <Button
               onClick={handleSave}
-              className="bg-indigo-600 hover:bg-indigo-700"
               disabled={createProject.isPending || updateProject.isPending}
+              className="rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold px-6"
             >
-              {(createProject.isPending || updateProject.isPending) ? "Saving..." : editingId ? "Update Project" : "Create Project"}
+              {createProject.isPending || updateProject.isPending ? "Saving…" : editingId ? "Update Project" : "Create Project"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Modal */}
+      {/* ── DELETE CONFIRM ── */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                <Trash2 className="w-5 h-5 text-red-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900">Delete Project</h3>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-slate-100">
+            <div className="w-12 h-12 bg-rose-50 rounded-2xl flex items-center justify-center mb-4 border border-rose-100">
+              <Trash2 className="w-5 h-5 text-rose-500" />
             </div>
-
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to delete this project? This action cannot be undone and all associated data will be permanently removed.
+            <h3 className="text-base font-bold text-slate-900 mb-1">Delete project?</h3>
+            <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+              This action is permanent. All associated data will be removed and cannot be recovered.
             </p>
-
             <div className="flex gap-3">
-              <Button
+              <button
                 onClick={() => setShowDeleteConfirm(null)}
-                variant="outline"
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => handleDeleteProject(showDeleteConfirm)}
-                className="flex-1 bg-red-600 hover:bg-red-700"
+                className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all"
+              >Cancel</button>
+              <button
+                onClick={() => handleDelete(showDeleteConfirm)}
                 disabled={deleteProject.isPending}
-              >
-                {deleteProject.isPending ? "Deleting..." : "Delete Project"}
-              </Button>
+                className="flex-1 px-4 py-2.5 rounded-xl bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 disabled:opacity-60 transition-all"
+              >{deleteProject.isPending ? "Deleting…" : "Delete"}</button>
             </div>
           </div>
         </div>
       )}
-
     </Layout>
   );
 }

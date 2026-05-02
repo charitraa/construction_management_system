@@ -4,6 +4,7 @@ import { ListRevenueResponse } from "../types/revenue.types";
 import { REVENUE_QUERY_KEYS } from "../constants/revenue.constants";
 
 export const useListRevenue = (params?: {
+  search?: string;
   start_date?: string;
   end_date?: string;
   project?: string;

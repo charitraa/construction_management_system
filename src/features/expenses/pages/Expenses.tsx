@@ -1,1106 +1,647 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Plus,
-  Search,
-  Calendar,
-  DollarSign,
-  TrendingUp,
-  Wallet,
-  PieChart,
-  X,
-  ChevronLeft,
-  ChevronRight,
-  Filter,
-  Briefcase,
-  Trash2,
-  Edit2,
-  Eye
+  Plus, Search, Calendar, DollarSign, TrendingUp, Wallet,
+  PieChart, X, ChevronLeft, ChevronRight, Briefcase,
+  Trash2, Edit2, Eye, Download, Package, Settings2,
+  ArrowUpRight, Hash,
 } from "lucide-react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  useListExpenses,
-  useCreateExpense,
-  useDeleteExpense,
-  useGetExpense,
-  useUpdateExpense,
-  useGetExpenseStats,
-  useExportExpenses,
-  useListProjects
+  useListExpenses, useCreateExpense, useDeleteExpense, useGetExpense,
+  useUpdateExpense, useGetExpenseStats, useExportExpenses, useListProjects,
 } from "../index";
+
+/* ─────────────────────── category config ─────────────────────── */
+
+const CATEGORY_META: Record<string, { bg: string; text: string; border: string; dot: string; icon: React.ReactNode }> = {
+  Labor: { bg: "bg-sky-50", text: "text-sky-700", border: "border-sky-200", dot: "bg-sky-400", icon: <Briefcase className="w-3 h-3" /> },
+  Materials: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200", dot: "bg-emerald-400", icon: <Package className="w-3 h-3" /> },
+  Equipment: { bg: "bg-violet-50", text: "text-violet-700", border: "border-violet-200", dot: "bg-violet-400", icon: <Settings2 className="w-3 h-3" /> },
+  Advance: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200", dot: "bg-amber-400", icon: <Wallet className="w-3 h-3" /> },
+  Other: { bg: "bg-slate-100", text: "text-slate-600", border: "border-slate-200", dot: "bg-slate-400", icon: <DollarSign className="w-3 h-3" /> },
+};
+
+const CAT_BAR_COLOR: Record<string, string> = {
+  Labor: "bg-sky-400", Materials: "bg-emerald-400",
+  Equipment: "bg-violet-400", Advance: "bg-amber-400", Other: "bg-slate-400",
+};
+
+const getCM = (cat: string) => CATEGORY_META[cat] ?? CATEGORY_META.Other;
+
+const CategoryBadge = ({ category }: { category: string }) => {
+  const m = getCM(category);
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${m.bg} ${m.text} ${m.border}`}>
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${m.dot}`} />
+      {category}
+    </span>
+  );
+};
+
+const ALL_CATEGORIES = ["Labor", "Materials", "Equipment", "Advance", "Other"];
+
+const fmtINR = (n: number) =>
+  n >= 1e7 ? `₹${(n / 1e7).toFixed(2)}Cr`
+    : n >= 1e5 ? `₹${(n / 1e5).toFixed(1)}L`
+      : `₹${Math.round(n).toLocaleString("en-IN")}`;
+
+/* ─────────────────────── stat card ─────────────────────── */
+
+const StatCard = ({
+  label, value, sub, accent, iconColor, icon,
+}: { label: string; value: string; sub: string; accent: string; iconColor: string; icon: React.ReactNode }) => (
+  <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+    <div className="flex items-start justify-between">
+      <div>
+        <p className="text-[10px] font-bold tracking-[.18em] uppercase text-slate-400">{label}</p>
+        <p className="text-2xl font-extrabold text-slate-900 mt-1.5 tabular-nums leading-none">{value}</p>
+        <p className="text-[11px] text-slate-400 mt-1">{sub}</p>
+      </div>
+      <div className={`${accent} p-2.5 rounded-xl`}>
+        <div className={`${iconColor} w-5 h-5`}>{icon}</div>
+      </div>
+    </div>
+  </div>
+);
+
+/* ─────────────────────── field label ─────────────────────── */
+
+const FieldLabel = ({ children }: { children: React.ReactNode }) => (
+  <label className="block text-[10px] font-bold tracking-[.15em] uppercase text-slate-400 mb-1.5">
+    {children} <span className="text-rose-400 normal-case tracking-normal">*</span>
+  </label>
+);
+
+const FieldError = ({ msg }: { msg?: string }) =>
+  msg ? <p className="text-[11px] text-rose-500 mt-1 font-medium">{msg}</p> : null;
+
+/* ─────────────────────── shared form ─────────────────────── */
+
+interface ExpenseForm {
+  description: string; category: string;
+  amount: string; project: string; date: string;
+}
+
+const ExpenseFormBody = ({
+  form, setForm, errors, setErrors, projects, expenses,
+}: {
+  form: ExpenseForm; setForm: (f: ExpenseForm) => void;
+  errors: Record<string, string>; setErrors: (e: Record<string, string>) => void;
+  projects: any[]; expenses: any[];
+}) => {
+  const cats = [...new Set([...expenses.map((e: any) => e.category), ...ALL_CATEGORIES])];
+  const clear = (k: string) => { if (errors[k]) setErrors({ ...errors, [k]: "" }); };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <FieldLabel>Description</FieldLabel>
+        <Input value={form.description}
+          onChange={e => { setForm({ ...form, description: e.target.value }); clear("description"); }}
+          placeholder="e.g. Steel rebar supply — Phase 2"
+          className={`rounded-xl border-slate-200 focus-visible:ring-amber-300 ${errors.description ? "border-rose-400" : ""}`}
+        />
+        <FieldError msg={errors.description} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <FieldLabel>Category</FieldLabel>
+          <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
+            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-300">
+            {cats.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div>
+          <FieldLabel>Amount (₹)</FieldLabel>
+          <Input type="number" value={form.amount}
+            onChange={e => { setForm({ ...form, amount: e.target.value }); clear("amount"); }}
+            placeholder="e.g. 45000"
+            className={`rounded-xl border-slate-200 focus-visible:ring-amber-300 ${errors.amount ? "border-rose-400" : ""}`}
+          />
+          <FieldError msg={errors.amount} />
+        </div>
+      </div>
+
+      <div>
+        <FieldLabel>Project</FieldLabel>
+        <select value={form.project} onChange={e => { setForm({ ...form, project: e.target.value }); clear("project"); }}
+          className={`w-full px-3 py-2.5 border rounded-xl text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-300 ${errors.project ? "border-rose-400" : "border-slate-200"}`}>
+          <option value="">— Select project —</option>
+          {projects.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        <FieldError msg={errors.project} />
+      </div>
+
+      <div>
+        <FieldLabel>Date</FieldLabel>
+        <Input type="date" value={form.date}
+          onChange={e => setForm({ ...form, date: e.target.value })}
+          className="rounded-xl border-slate-200 focus-visible:ring-amber-300"
+        />
+      </div>
+    </div>
+  );
+};
+
+/* ─────────────────────── main page ─────────────────────── */
 
 export default function Expenses() {
   const [openDialog, setOpenDialog] = useState(false);
   const [editDialog, setEditDialog] = useState(false);
   const [viewDialog, setViewDialog] = useState(false);
-  const [selectedExpenseId, setSelectedExpenseId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-  const [isSearchDebouncing, setIsSearchDebouncing] = useState(false);
-  const [categoryFilter, setCategoryFilter] = useState<"all" | string>("all");
-  const [projectFilter, setProjectFilter] = useState<"all" | string>("all");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [isDebouncing, setIsDebouncing] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [projectFilter, setProjectFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
   const [currentPage, setCurrentPage] = useState(1);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
 
-  const { data: expensesData, isLoading: expensesLoading } = useListExpenses({
-    page: currentPage,
-    page_size: 10, // Use API's default or match backend pagination
-    search: debouncedSearchTerm || undefined,
+  const blankForm: ExpenseForm = {
+    description: "", category: "Labor", amount: "", project: "",
+    date: new Date().toISOString().split("T")[0],
+  };
+  const [form, setForm] = useState<ExpenseForm>(blankForm);
+  const [editForm, setEditForm] = useState<ExpenseForm>(blankForm);
+
+  const { data: expensesData, isLoading } = useListExpenses({
+    page: currentPage, page_size: 10,
+    search: debouncedSearch || undefined,
     category: categoryFilter !== "all" ? categoryFilter : undefined,
     project: projectFilter !== "all" ? projectFilter : undefined,
     start_date: dateRange.start || undefined,
     end_date: dateRange.end || undefined,
   });
   const { data: projectsData } = useListProjects();
+  const { data: statsData } = useGetExpenseStats();
+  const { data: selectedData, isLoading: selectedLoading } = useGetExpense(selectedId ?? "");
   const createExpense = useCreateExpense();
-  const deleteExpense = useDeleteExpense();
   const updateExpense = useUpdateExpense();
-  const { data: expenseStatsData } = useGetExpenseStats();
+  const deleteExpense = useDeleteExpense();
   const exportExpenses = useExportExpenses();
-  const { data: selectedExpenseData, isLoading: selectedExpenseLoading } = useGetExpense(selectedExpenseId || "");
 
-  const expenses = expensesData?.results?.data || [];
-  const projects = projectsData?.data || [];
+  const expenses = expensesData?.results?.data ?? [];
+  const projects = projectsData?.data ?? [];
+  const totalCount = expensesData?.count ?? 0;
+  const totalPages = Math.ceil(totalCount / 10);
 
-  // Extract pagination information from API response
-  const paginationInfo = {
-    count: expensesData?.count || 0,
-    next: expensesData?.next,
-    previous: expensesData?.previous,
-    totalPages: Math.ceil((expensesData?.count || 0) / 10), // Assuming page_size is 10
-    currentPage: currentPage,
-  };
-
-  // Debounce search term
-  useEffect(() => {
-    setIsSearchDebouncing(true);
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-      setIsSearchDebouncing(false);
-    }, 500); // 500ms delay
-
-    return () => {
-      clearTimeout(timer);
-      setIsSearchDebouncing(false);
+  const stats = useMemo(() => {
+    const d = statsData?.data;
+    return {
+      total: d?.total_expenses ?? 0,
+      average: d?.average_expense ?? 0,
+      highest: d?.highest_expense ?? 0,
+      count: d?.transaction_count ?? 0,
+      breakdown: (d?.category_breakdown ?? {}) as Record<string, number>,
     };
+  }, [statsData]);
+
+  /* debounce */
+  useEffect(() => {
+    setIsDebouncing(true);
+    const t = setTimeout(() => { setDebouncedSearch(searchTerm); setIsDebouncing(false); }, 450);
+    return () => { clearTimeout(t); setIsDebouncing(false); };
   }, [searchTerm]);
 
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [debouncedSearchTerm, categoryFilter, projectFilter, dateRange.start, dateRange.end]);
+  useEffect(() => { setCurrentPage(1); }, [debouncedSearch, categoryFilter, projectFilter, dateRange.start, dateRange.end]);
 
-  const [formData, setFormData] = useState({
-    date: new Date().toISOString().split("T")[0],
-    description: "",
-    category: "Labor",
-    amount: "",
-    project: "",
-  });
+  /* validation */
+  const validate = (f: ExpenseForm) => {
+    const e: Record<string, string> = {};
+    if (!f.description.trim()) e.description = "Description is required";
+    if (!f.amount.trim() || isNaN(+f.amount) || +f.amount <= 0) e.amount = "Enter a valid positive amount";
+    if (!f.project) e.project = "Select a project";
+    return e;
+  };
 
-  const [editFormData, setEditFormData] = useState({
-    date: "",
-    description: "",
-    category: "",
-    amount: "",
-    project: "",
-  });
+  const handleAdd = () => {
+    const errs = validate(form);
+    setFormErrors(errs);
+    if (Object.keys(errs).length) return;
+    createExpense.mutate(form);
+    setOpenDialog(false);
+    setFormErrors({});
+  };
 
-  // Note: Filtering and pagination are now handled by the API
+  const handleEdit = () => {
+    const errs = validate(editForm);
+    setEditErrors(errs);
+    if (Object.keys(errs).length || !selectedId) return;
+    updateExpense.mutate({ id: selectedId, data: editForm });
+    setEditDialog(false);
+    setEditErrors({});
+  };
 
-  // Use API stats for accurate statistics
-  const stats = useMemo(() => {
-    if (expenseStatsData?.data) {
-      const apiStats = expenseStatsData.data;
-      return {
-        totalAmount: apiStats.total_expenses || 0,
-        categoryTotals: apiStats.category_breakdown || {},
-        averageExpense: apiStats.average_expense || 0,
-        highestExpense: apiStats.highest_expense || 0,
-        transactionCount: apiStats.transaction_count || 0,
-      };
-    }
+  const handleDelete = (id: string) => deleteExpense.mutate(id, { onSuccess: () => setShowDeleteConfirm(null) });
 
-    // Fallback if no API stats available
-    return {
-      totalAmount: 0,
-      categoryTotals: {},
-      averageExpense: 0,
-      highestExpense: 0,
-      transactionCount: 0,
-    };
-  }, [expenseStatsData]);
-
-  const handleOpenDialog = () => {
-    setFormData({
-      date: new Date().toISOString().split("T")[0],
-      description: "",
-      category: "Labor",
-      amount: "",
-      project: projects[0]?.id || "",
-    });
+  const openAdd = () => {
+    setForm({ ...blankForm, project: projects[0]?.id ?? "" });
+    setFormErrors({});
     setOpenDialog(true);
   };
 
-  const handleViewExpense = (expenseId: string) => {
-    setSelectedExpenseId(expenseId);
-    setViewDialog(true);
-  };
+  const openView = (id: string) => { setSelectedId(id); setViewDialog(true); };
 
-  const handleEditExpense = (expense: any) => {
-    setEditFormData({
-      date: expense.date,
-      description: expense.description,
-      category: expense.category,
-      amount: expense.amount,
-      project: expense.project || "",
-    });
-    setSelectedExpenseId(expense.id);
+  const openEdit = (exp: any) => {
+    setEditForm({ description: exp.description, category: exp.category, amount: exp.amount, project: exp.project ?? "", date: exp.date });
+    setSelectedId(exp.id);
+    setEditErrors({});
     setEditDialog(true);
   };
 
-  const handleSave = () => {
-    if (!formData.description || !formData.amount || !formData.project) {
-      alert("Please fill all required fields");
-      return;
-    }
+  const clearFilters = () => { setSearchTerm(""); setCategoryFilter("all"); setProjectFilter("all"); setDateRange({ start: "", end: "" }); setCurrentPage(1); };
 
-    const amountValue = parseFloat(formData.amount);
-    if (isNaN(amountValue) || amountValue <= 0) {
-      alert("Please enter a valid positive amount");
-      return;
-    }
+  const hasFilters = debouncedSearch || categoryFilter !== "all" || projectFilter !== "all" || dateRange.start || dateRange.end;
 
-    createExpense.mutate({
-      date: formData.date,
-      description: formData.description,
-      category: formData.category,
-      amount: formData.amount,
-      project: formData.project,
-    });
+  /* category bar chart max */
+  const maxCat = Math.max(...Object.values(stats.breakdown), 1);
 
-    setOpenDialog(false);
-  };
-
-  const handleSaveEdit = () => {
-    if (!editFormData.description || !editFormData.amount || !editFormData.project) {
-      alert("Please fill all required fields");
-      return;
-    }
-
-    const amountValue = parseFloat(editFormData.amount);
-    if (isNaN(amountValue) || amountValue <= 0) {
-      alert("Please enter a valid positive amount");
-      return;
-    }
-
-    if (!selectedExpenseId) return;
-
-    updateExpense.mutate({
-      id: selectedExpenseId,
-      data: {
-        date: editFormData.date,
-        description: editFormData.description,
-        category: editFormData.category,
-        amount: editFormData.amount,
-        project: editFormData.project,
-      },
-    });
-
-    setEditDialog(false);
-  };
-
-  const handleDeleteExpense = (expenseId: string) => {
-    deleteExpense.mutate(expenseId, {
-      onSuccess: () => {
-        setShowDeleteConfirm(null);
-      },
-    });
-  };
-
-  const handleExportExpenses = () => {
-    exportExpenses.mutate({
-      category: categoryFilter !== "all" ? categoryFilter : undefined,
-      start_date: dateRange.start || undefined,
-      end_date: dateRange.end || undefined,
-    });
-  };
-
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case "Labor":
-        return "bg-blue-100 text-blue-700 border-blue-200";
-      case "Materials":
-        return "bg-green-100 text-green-700 border-green-200";
-      case "Equipment":
-        return "bg-purple-100 text-purple-700 border-purple-200";
-      case "Advance":
-        return "bg-yellow-100 text-yellow-700 border-yellow-200";
-      case "Other":
-        return "bg-gray-100 text-gray-700 border-gray-200";
-      default:
-        return "bg-indigo-100 text-indigo-700 border-indigo-200";
-    }
-  };
-
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case "Labor":
-        return <Briefcase className="w-3 h-3" />;
-      case "Materials":
-        return <Package className="w-3 h-3" />;
-      case "Equipment":
-        return <Settings className="w-3 h-3" />;
-      case "Advance":
-        return <Wallet className="w-3 h-3" />;
-      default:
-        return <DollarSign className="w-3 h-3" />;
-    }
-  };
-
-  const clearFilters = () => {
-    setSearchTerm("");
-    setCategoryFilter("all");
-    setProjectFilter("all");
-    setDateRange({ start: "", end: "" });
-    setCurrentPage(1);
-  };
-
-  if (expensesLoading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-500">Loading expenses...</p>
-          </div>
+  /* ── loading ── */
+  if (isLoading) return (
+    <Layout>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-[3px] border-amber-200 border-t-amber-500 rounded-full animate-spin" />
+          <p className="text-sm text-slate-400 font-medium tracking-wide">Loading expenses…</p>
         </div>
-      </Layout>
-    );
-  }
+      </div>
+    </Layout>
+  );
 
   return (
     <Layout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Expenses</h1>
-            <p className="text-gray-500 mt-1">Track and manage project expenses</p>
-          </div>
-          <div className="flex gap-3">
-            <Button
-              onClick={handleExportExpenses}
-              variant="outline"
-              className="gap-2"
-              disabled={exportExpenses.isPending}
-            >
-              <Eye className="w-4 h-4" />
-              {exportExpenses.isPending ? "Exporting..." : "Export CSV"}
-            </Button>
-            <Button
-              onClick={handleOpenDialog}
-              className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 shadow-lg hover:shadow-xl transition-all duration-200 gap-2"
-              disabled={createExpense.isPending}
-            >
-              <Plus className="w-4 h-4" />
-              Add Expense
-            </Button>
-          </div>
-        </div>
+      <div className="min-h-screen bg-slate-50/40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-7">
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Total Expenses</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
-                  ₹{stats.totalAmount.toLocaleString()}
-                </p>
+          {/* ── HEADER ── */}
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-1 h-6 bg-red-500 rounded-full" />
+                <span className="text-[10px] font-bold tracking-[.2em] uppercase text-red-600">Construction CMS</span>
               </div>
-              <div className="bg-indigo-50 p-3 rounded-xl">
-                <Wallet className="w-6 h-6 text-indigo-600" />
-              </div>
+              <h1 className="text-[2rem] font-extrabold text-slate-900 leading-tight tracking-tight">Expenses</h1>
+              <p className="text-slate-400 text-sm mt-0.5">Track and manage project expenditures</p>
             </div>
-            <div className="mt-3 text-xs text-gray-400">
-              {stats.transactionCount} transactions
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Average Expense</p>
-                <p className="text-2xl font-bold text-blue-600 mt-1">
-                  ₹{Math.round(stats.averageExpense).toLocaleString()}
-                </p>
-              </div>
-              <div className="bg-blue-50 p-3 rounded-xl">
-                <TrendingUp className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-            <div className="mt-3 text-xs text-gray-400">
-              Per transaction
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Highest Expense</p>
-                <p className="text-2xl font-bold text-purple-600 mt-1">
-                  ₹{stats.highestExpense.toLocaleString()}
-                </p>
-              </div>
-              <div className="bg-purple-50 p-3 rounded-xl">
-                <DollarSign className="w-6 h-6 text-purple-600" />
-              </div>
-            </div>
-            <div className="mt-3 text-xs text-gray-400">
-              Single transaction
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Categories</p>
-                <p className="text-2xl font-bold text-emerald-600 mt-1">
-                  {Object.keys(stats.categoryTotals).filter(cat => stats.categoryTotals[cat as keyof typeof stats.categoryTotals] > 0).length}
-                </p>
-              </div>
-              <div className="bg-emerald-50 p-3 rounded-xl">
-                <PieChart className="w-6 h-6 text-emerald-600" />
-              </div>
-            </div>
-            <div className="mt-3 text-xs text-gray-400">
-              Active categories
-            </div>
-          </div>
-        </div>
-
-        {/* Category Breakdown */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Expenses by Category</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {Object.entries(stats.categoryTotals).map(([category, amount]) => (
-              <div key={category} className="text-center p-2 rounded-lg bg-gray-50">
-                <p className="text-xs text-gray-500">{category}</p>
-                <p className="text-sm font-bold text-gray-900">₹{amount.toLocaleString()}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Filters Bar */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1 relative">
-                {isSearchDebouncing ? (
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4">
-                    <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
-                  </div>
-                ) : (
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                )}
-                <Input
-                  placeholder="Search expenses by description..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="pl-10 border-gray-200 focus:border-indigo-300 focus:ring-indigo-200"
-                />
-              </div>
-
-              <select
-                value={categoryFilter}
-                onChange={(e) => {
-                  setCategoryFilter(e.target.value as typeof categoryFilter);
-                  setCurrentPage(1);
-                }}
-                className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => exportExpenses.mutate({ category: categoryFilter !== "all" ? categoryFilter : undefined, start_date: dateRange.start || undefined, end_date: dateRange.end || undefined })}
+                disabled={exportExpenses.isPending}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-50"
               >
-                <option value="all">All Categories</option>
-                {[...new Set(expenses.map(e => e.category))].map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-
-              <select
-                value={projectFilter}
-                onChange={(e) => {
-                  setProjectFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+                <Download className="w-4 h-4" />
+                {exportExpenses.isPending ? "Exporting…" : "Export CSV"}
+              </button>
+              <button
+                onClick={openAdd}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 active:scale-95 transition-all shadow-sm"
               >
-                <option value="all">All Projects</option>
-                {projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  type="date"
-                  placeholder="Start Date"
-                  value={dateRange.start}
-                  onChange={(e) => {
-                    setDateRange({ ...dateRange, start: e.target.value });
-                    setCurrentPage(1);
-                  }}
-                  className="pl-10 w-full sm:w-40 border-gray-200"
-                />
-              </div>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  type="date"
-                  placeholder="End Date"
-                  value={dateRange.end}
-                  onChange={(e) => {
-                    setDateRange({ ...dateRange, end: e.target.value });
-                    setCurrentPage(1);
-                  }}
-                  className="pl-10 w-full sm:w-40 border-gray-200"
-                />
-              </div>
-            </div>
-
-            {(debouncedSearchTerm || categoryFilter !== "all" || projectFilter !== "all" || dateRange.start || dateRange.end) && (
-              <div className="flex items-center justify-between">
-                <div className="flex flex-wrap gap-2">
-                  {debouncedSearchTerm && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 text-xs rounded-lg">
-                      Search: {debouncedSearchTerm}
-                      <button onClick={() => setSearchTerm("")} className="hover:text-indigo-900">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {categoryFilter !== "all" && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 text-xs rounded-lg">
-                      Category: {categoryFilter}
-                      <button onClick={() => setCategoryFilter("all")}>
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {projectFilter !== "all" && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 text-xs rounded-lg">
-                      Project: {projects.find(p => p.id === projectFilter)?.name}
-                      <button onClick={() => setProjectFilter("all")}>
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {dateRange.start && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 text-xs rounded-lg">
-                      From: {dateRange.start}
-                      <button onClick={() => setDateRange({ ...dateRange, start: "" })}>
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {dateRange.end && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 text-xs rounded-lg">
-                      To: {dateRange.end}
-                      <button onClick={() => setDateRange({ ...dateRange, end: "" })}>
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearFilters}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  Clear all
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Expenses Table */}
-        {expenses.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Wallet className="w-8 h-8 text-gray-400" />
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-1">No expenses found</h3>
-            <p className="text-gray-500 mb-4">
-              {debouncedSearchTerm || categoryFilter !== "all" || projectFilter !== "all" || dateRange.start || dateRange.end
-                ? "Try adjusting your filters"
-                : "Get started by adding your first expense"}
-            </p>
-            {!debouncedSearchTerm && categoryFilter === "all" && projectFilter === "all" && !dateRange.start && !dateRange.end && (
-              <Button onClick={handleOpenDialog} className="gap-2">
                 <Plus className="w-4 h-4" />
                 Add Expense
-              </Button>
-            )}
-          </div>
-        ) : (
-          <>
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-gradient-to-r from-gray-50 to-white border-b border-gray-200">
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Date</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Description</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Category</th>
-                      <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700">Amount</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Project</th>
-                      <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Actions</th>
-                    </tr>
-                  </thead>
-                   <tbody>
-                     {expenses.map((expense) => (
-                      <tr
-                        key={expense.id}
-                        className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                      >
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-3 h-3 text-gray-400" />
-                            {new Date(expense.date).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric'
-                            })}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                          {expense.description}
-                        </td>
-                        <td className="px-6 py-4 text-sm">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${getCategoryColor(expense.category)}`}>
-                            {getCategoryIcon(expense.category)}
-                            {expense.category}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-right font-bold text-indigo-600">
-                          ₹{parseFloat(expense.amount).toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">
-                          {projects.find(p => p.id === expense.project)?.name || expense.project}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => handleViewExpense(expense.id)}
-                              className="p-1.5 hover:bg-blue-50 rounded-lg transition-colors text-blue-500 hover:text-blue-700"
-                              title="View expense"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleEditExpense(expense)}
-                              className="p-1.5 hover:bg-green-50 rounded-lg transition-colors text-green-500 hover:text-green-700"
-                              title="Edit expense"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => setShowDeleteConfirm(expense.id)}
-                              className="p-1.5 hover:bg-red-50 rounded-lg transition-colors text-red-500 hover:text-red-700"
-                              title="Delete expense"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="bg-gray-50 border-t border-gray-200">
-                    <tr>
-                      <td colSpan={3} className="px-6 py-4 text-sm font-semibold text-gray-900">
-                        Total
-                      </td>
-                       <td className="px-6 py-4 text-right text-lg font-bold text-indigo-600">
-                         ₹{expenses.reduce((sum, exp) => sum + parseFloat(exp.amount), 0).toLocaleString()}
-                       </td>
-                       <td colSpan={2}></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </div>
-
-            {/* Pagination */}
-            {paginationInfo.totalPages > 1 && expenses.length > 0 && (
-              <div className="flex items-center justify-between pt-4">
-                <div className="text-sm text-gray-500">
-                  Showing {((currentPage - 1) * 10) + 1} to {Math.min(currentPage * 10, paginationInfo.count)} of {paginationInfo.count} expenses
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={!paginationInfo.previous}
-                    className="gap-1"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                    Previous
-                  </Button>
-                  <div className="flex gap-1">
-                    {Array.from({ length: Math.min(5, paginationInfo.totalPages) }, (_, i) => {
-                      let pageNum;
-                      if (paginationInfo.totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1;
-                      } else if (currentPage >= paginationInfo.totalPages - 2) {
-                        pageNum = paginationInfo.totalPages - 4 + i;
-                      } else {
-                        pageNum = currentPage - 2 + i;
-                      }
-                      return (
-                        <Button
-                          key={pageNum}
-                          variant={currentPage === pageNum ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setCurrentPage(pageNum)}
-                          className={`w-9 ${currentPage === pageNum ? "bg-indigo-600" : ""}`}
-                        >
-                          {pageNum}
-                        </Button>
-                      );
-                    })}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.min(paginationInfo.totalPages, p + 1))}
-                    disabled={!paginationInfo.next}
-                    className="gap-1"
-                  >
-                    Next
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* Add Expense Dialog */}
-      <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Add New Expense</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description <span className="text-red-500">*</span>
-              </label>
-              <Input
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Enter expense description"
-                className="border-gray-200"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Category <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={formData.category}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    category: e.target.value,
-                  })
-                }
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-              >
-                {[...new Set(expenses.map(e => e.category))].concat(['Labor', 'Materials', 'Equipment', 'Other']).filter((value, index, self) => self.indexOf(value) === index).map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Amount (₹) <span className="text-red-500">*</span>
-              </label>
-              <Input
-                type="number"
-                value={formData.amount}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    amount: e.target.value,
-                  })
-                }
-                placeholder="Enter amount"
-                className="border-gray-200"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Project <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={formData.project}
-                onChange={(e) => setFormData({ ...formData, project: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-              >
-                {projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Date <span className="text-red-500">*</span>
-              </label>
-              <Input
-                type="date"
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                className="border-gray-200"
-              />
+              </button>
             </div>
           </div>
 
-          <DialogFooter className="gap-3">
-            <Button variant="outline" onClick={() => setOpenDialog(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSave}
-              className="bg-indigo-600 hover:bg-indigo-700"
-              disabled={createExpense.isPending}
-            >
-              {createExpense.isPending ? "Adding..." : "Add Expense"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          {/* ── STATS ── */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard label="Total Spent" value={fmtINR(stats.total)} sub={`${stats.count} transactions`} accent="bg-slate-100" iconColor="text-slate-600" icon={<Wallet className="w-5 h-5" />} />
+            <StatCard label="Average" value={fmtINR(stats.average)} sub="Per transaction" accent="bg-sky-100" iconColor="text-sky-600" icon={<TrendingUp className="w-5 h-5" />} />
+            <StatCard label="Highest" value={fmtINR(stats.highest)} sub="Single transaction" accent="bg-violet-100" iconColor="text-violet-600" icon={<ArrowUpRight className="w-5 h-5" />} />
+            <StatCard label="Categories" value={String(Object.keys(stats.breakdown).filter(k => stats.breakdown[k] > 0).length)} sub="Active" accent="bg-amber-100" iconColor="text-amber-600" icon={<PieChart className="w-5 h-5" />} />
+          </div>
 
-      {/* View Expense Dialog */}
-      <Dialog open={viewDialog} onOpenChange={setViewDialog}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Expense Details</DialogTitle>
-          </DialogHeader>
-
-          {selectedExpenseLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="w-6 h-6 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-            </div>
-          ) : selectedExpenseData?.data ? (
-            <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Date
-                  </label>
-                  <p className="text-sm text-gray-900 p-2 bg-gray-50 rounded">
-                    {new Date(selectedExpenseData.data.date).toLocaleDateString()}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Amount
-                  </label>
-                  <p className="text-sm text-gray-900 p-2 bg-gray-50 rounded font-medium">
-                    ₹{parseFloat(selectedExpenseData.data.amount).toLocaleString()}
-                  </p>
-                </div>
+          {/* ── CATEGORY BREAKDOWN ── */}
+          {Object.keys(stats.breakdown).length > 0 && (
+            <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+              <p className="text-[10px] font-bold tracking-[.18em] uppercase text-slate-400 mb-4">Spend by Category</p>
+              <div className="space-y-3">
+                {Object.entries(stats.breakdown).map(([cat, amount]) => {
+                  const pct = Math.round((amount / maxCat) * 100);
+                  const m = getCM(cat);
+                  return (
+                    <div key={cat}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`text-xs font-semibold ${m.text}`}>{cat}</span>
+                        <span className="text-xs font-bold text-slate-700">{fmtINR(amount)}</span>
+                      </div>
+                      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full transition-all duration-700 ${CAT_BAR_COLOR[cat] ?? "bg-slate-400"}`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
-                </label>
-                <p className="text-sm text-gray-900 p-3 bg-gray-50 rounded">
-                  {selectedExpenseData.data.description}
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category
-                </label>
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${getCategoryColor(selectedExpenseData.data.category)}`}>
-                  {getCategoryIcon(selectedExpenseData.data.category)}
-                  {selectedExpenseData.data.category}
-                </span>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Project
-                </label>
-                <p className="text-sm text-gray-900 p-2 bg-gray-50 rounded">
-                  {selectedExpenseData.data.project_name || "No project assigned"}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 pt-2 border-t">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">
-                    Created At
-                  </label>
-                  <p className="text-xs text-gray-600">
-                    {new Date(selectedExpenseData.data.created_at).toLocaleString()}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">
-                    Updated At
-                  </label>
-                  <p className="text-xs text-gray-600">
-                    {new Date(selectedExpenseData.data.updated_at).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="py-8 text-center">
-              <p className="text-gray-500">Expense not found</p>
             </div>
           )}
 
-          <DialogFooter>
-            <Button
-              onClick={() => {
-                setViewDialog(false);
-                setSelectedExpenseId(null);
-              }}
-            >
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Expense Dialog */}
-      <Dialog open={editDialog} onOpenChange={setEditDialog}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Edit Expense</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description <span className="text-red-500">*</span>
-              </label>
-              <Input
-                value={editFormData.description}
-                onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
-                placeholder="Enter expense description"
-                className="border-gray-200"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Category <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={editFormData.category}
-                onChange={(e) =>
-                  setEditFormData({
-                    ...editFormData,
-                    category: e.target.value,
-                  })
-                }
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-              >
-                {[...new Set(expenses.map(e => e.category))].concat(['Labor', 'Materials', 'Equipment', 'Other']).filter((value, index, self) => self.indexOf(value) === index).map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
+          {/* ── FILTER BAR ── */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* search */}
+              <div className="relative flex-1">
+                {isDebouncing
+                  ? <div className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-slate-200 border-t-amber-500 rounded-full animate-spin" />
+                  : <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />}
+                <Input value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                  placeholder="Search by description…"
+                  className="pl-10 rounded-xl border-slate-200 focus-visible:ring-amber-300 bg-slate-50 focus:bg-white transition-colors"
+                />
+              </div>
+              {/* category select */}
+              <select value={categoryFilter} onChange={e => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
+                className="px-3 py-2 rounded-xl border border-slate-200 text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-300">
+                <option value="all">All Categories</option>
+                {ALL_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              {/* project select */}
+              <select value={projectFilter} onChange={e => { setProjectFilter(e.target.value); setCurrentPage(1); }}
+                className="px-3 py-2 rounded-xl border border-slate-200 text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-300">
+                <option value="all">All Projects</option>
+                {projects.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Amount (₹) <span className="text-red-500">*</span>
-              </label>
-              <Input
-                type="number"
-                value={editFormData.amount}
-                onChange={(e) =>
-                  setEditFormData({
-                    ...editFormData,
-                    amount: e.target.value,
-                  })
-                }
-                placeholder="Enter amount"
-                className="border-gray-200"
-              />
+            {/* date range */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input type="date" value={dateRange.start}
+                  onChange={e => { setDateRange({ ...dateRange, start: e.target.value }); setCurrentPage(1); }}
+                  className="pl-10 rounded-xl border-slate-200 focus-visible:ring-amber-300 w-full sm:w-44"
+                />
+              </div>
+              <div className="flex items-center text-slate-300 text-sm px-1 hidden sm:flex">→</div>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input type="date" value={dateRange.end}
+                  onChange={e => { setDateRange({ ...dateRange, end: e.target.value }); setCurrentPage(1); }}
+                  className="pl-10 rounded-xl border-slate-200 focus-visible:ring-amber-300 w-full sm:w-44"
+                />
+              </div>
+              {hasFilters && (
+                <button onClick={clearFilters}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-slate-500 hover:text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all ml-auto">
+                  <X className="w-3.5 h-3.5" /> Clear all
+                </button>
+              )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Project <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={editFormData.project}
-                onChange={(e) => setEditFormData({ ...editFormData, project: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-              >
-                {projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
+            {/* active filter chips */}
+            {hasFilters && (
+              <div className="flex flex-wrap gap-2">
+                {[
+                  debouncedSearch && { label: `"${debouncedSearch}"`, onRemove: () => setSearchTerm("") },
+                  categoryFilter !== "all" && { label: categoryFilter, onRemove: () => setCategoryFilter("all") },
+                  projectFilter !== "all" && { label: projects.find((p: any) => p.id === projectFilter)?.name ?? projectFilter, onRemove: () => setProjectFilter("all") },
+                  dateRange.start && { label: `From ${dateRange.start}`, onRemove: () => setDateRange(d => ({ ...d, start: "" })) },
+                  dateRange.end && { label: `To ${dateRange.end}`, onRemove: () => setDateRange(d => ({ ...d, end: "" })) },
+                ].filter(Boolean).map((chip: any, i) => (
+                  <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-semibold rounded-full">
+                    {chip.label}
+                    <button onClick={chip.onRemove} className="hover:text-amber-900"><X className="w-2.5 h-2.5" /></button>
+                  </span>
                 ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Date <span className="text-red-500">*</span>
-              </label>
-              <Input
-                type="date"
-                value={editFormData.date}
-                onChange={(e) => setEditFormData({ ...editFormData, date: e.target.value })}
-                className="border-gray-200"
-              />
-            </div>
+              </div>
+            )}
           </div>
 
-          <DialogFooter className="gap-3">
-            <Button variant="outline" onClick={() => setEditDialog(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSaveEdit}
-              className="bg-green-600 hover:bg-green-700"
-              disabled={updateExpense.isPending}
-            >
-              {updateExpense.isPending ? "Updating..." : "Update Expense"}
+          {/* ── TABLE ── */}
+          {expenses.length === 0 ? (
+            <div className="bg-white border border-slate-200 rounded-2xl p-16 text-center shadow-sm">
+              <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Wallet className="w-8 h-8 text-slate-300" />
+              </div>
+              <h3 className="text-base font-semibold text-slate-700 mb-1">No expenses found</h3>
+              <p className="text-sm text-slate-400 mb-5">
+                {hasFilters ? "Try adjusting your filters" : "Get started by recording your first expense"}
+              </p>
+              {!hasFilters && (
+                <button onClick={openAdd} className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-slate-800 transition-all">
+                  <Plus className="w-4 h-4" /> Add Expense
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50/70">
+                        {["Date", "Description", "Category", "Project", "Amount", ""].map((h, i) => (
+                          <th key={i} className={`px-5 py-3.5 text-[10px] font-bold tracking-[.15em] uppercase text-slate-400 ${i === 4 ? "text-right" : i === 5 ? "text-center" : "text-left"}`}>
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {expenses.map((exp: any) => (
+                        <tr key={exp.id} className="hover:bg-slate-50/80 transition-colors group">
+                          <td className="px-5 py-3.5 text-slate-500 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
+                              {new Date(exp.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                            </div>
+                          </td>
+                          <td className="px-5 py-3.5 font-semibold text-slate-800 max-w-[200px] truncate">
+                            {exp.description}
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <CategoryBadge category={exp.category} />
+                          </td>
+                          <td className="px-5 py-3.5 text-slate-500 max-w-[140px] truncate">
+                            {projects.find((p: any) => p.id === exp.project)?.name ?? exp.project ?? "—"}
+                          </td>
+                          <td className="px-5 py-3.5 text-right font-bold text-slate-900 tabular-nums whitespace-nowrap">
+                            ₹{parseFloat(exp.amount).toLocaleString("en-IN")}
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <div className="flex items-center justify-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => openView(exp.id)} className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50 transition-colors" title="View"><Eye className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => openEdit(exp)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors" title="Edit"><Edit2 className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => setShowDeleteConfirm(exp.id)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-slate-200 bg-slate-50/70">
+                        <td colSpan={4} className="px-5 py-3.5 text-[11px] font-bold tracking-[.12em] uppercase text-slate-400">
+                          Page Total
+                        </td>
+                        <td className="px-5 py-3.5 text-right font-extrabold text-slate-900 tabular-nums">
+                          ₹{expenses.reduce((s: number, e: any) => s + parseFloat(e.amount), 0).toLocaleString("en-IN")}
+                        </td>
+                        <td />
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+
+              {/* ── PAGINATION ── */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-slate-400">
+                    {(currentPage - 1) * 10 + 1}–{Math.min(currentPage * 10, totalCount)} of <span className="font-semibold text-slate-600">{totalCount}</span> expenses
+                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
+                      className="p-2 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let n: number;
+                      if (totalPages <= 5) n = i + 1;
+                      else if (currentPage <= 3) n = i + 1;
+                      else if (currentPage >= totalPages - 2) n = totalPages - 4 + i;
+                      else n = currentPage - 2 + i;
+                      return (
+                        <button key={n} onClick={() => setCurrentPage(n)}
+                          className={`w-9 h-9 rounded-xl text-sm font-semibold transition-all ${currentPage === n ? "bg-slate-900 text-white" : "border border-slate-200 text-slate-500 hover:bg-slate-50"}`}>
+                          {n}
+                        </button>
+                      );
+                    })}
+                    <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
+                      className="p-2 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* ── ADD DIALOG ── */}
+      <Dialog open={openDialog} onOpenChange={setOpenDialog}>
+        <DialogContent className="sm:max-w-md rounded-2xl border-slate-200 shadow-xl">
+          <DialogHeader className="pb-2">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-slate-900 rounded-xl flex items-center justify-center">
+                <Plus className="w-4 h-4 text-white" />
+              </div>
+              <DialogTitle className="text-lg font-bold text-slate-900">New Expense</DialogTitle>
+            </div>
+          </DialogHeader>
+          <ExpenseFormBody form={form} setForm={setForm} errors={formErrors} setErrors={setFormErrors} projects={projects} expenses={expenses} />
+          <DialogFooter className="gap-2 pt-4">
+            <Button variant="outline" onClick={() => setOpenDialog(false)} className="rounded-xl border-slate-200 text-slate-600">Cancel</Button>
+            <Button onClick={handleAdd} disabled={createExpense.isPending} className="rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold px-6">
+              {createExpense.isPending ? "Saving…" : "Add Expense"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                <Trash2 className="w-5 h-5 text-red-600" />
+      {/* ── EDIT DIALOG ── */}
+      <Dialog open={editDialog} onOpenChange={setEditDialog}>
+        <DialogContent className="sm:max-w-md rounded-2xl border-slate-200 shadow-xl">
+          <DialogHeader className="pb-2">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-slate-900 rounded-xl flex items-center justify-center">
+                <Edit2 className="w-4 h-4 text-white" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900">Delete Expense</h3>
+              <DialogTitle className="text-lg font-bold text-slate-900">Edit Expense</DialogTitle>
             </div>
+          </DialogHeader>
+          <ExpenseFormBody form={editForm} setForm={setEditForm} errors={editErrors} setErrors={setEditErrors} projects={projects} expenses={expenses} />
+          <DialogFooter className="gap-2 pt-4">
+            <Button variant="outline" onClick={() => setEditDialog(false)} className="rounded-xl border-slate-200 text-slate-600">Cancel</Button>
+            <Button onClick={handleEdit} disabled={updateExpense.isPending} className="rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold px-6">
+              {updateExpense.isPending ? "Saving…" : "Update Expense"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to delete this expense record? This action cannot be undone.
+      {/* ── VIEW DIALOG ── */}
+      <Dialog open={viewDialog} onOpenChange={v => { setViewDialog(v); if (!v) setSelectedId(null); }}>
+        <DialogContent className="sm:max-w-md rounded-2xl border-slate-200 shadow-xl">
+          <DialogHeader className="pb-2">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-slate-100 rounded-xl flex items-center justify-center">
+                <Eye className="w-4 h-4 text-slate-600" />
+              </div>
+              <DialogTitle className="text-lg font-bold text-slate-900">Expense Details</DialogTitle>
+            </div>
+          </DialogHeader>
+          {selectedLoading ? (
+            <div className="flex items-center justify-center py-10">
+              <div className="w-7 h-7 border-2 border-amber-200 border-t-amber-500 rounded-full animate-spin" />
+            </div>
+          ) : selectedData?.data ? (
+            <div className="space-y-4 py-2">
+              {/* amount hero */}
+              <div className="bg-slate-900 rounded-2xl p-5 text-center">
+                <p className="text-[10px] font-bold tracking-[.18em] uppercase text-slate-400 mb-1">Amount</p>
+                <p className="text-4xl font-extrabold text-white tabular-nums">
+                  ₹{parseFloat(selectedData.data.amount).toLocaleString("en-IN")}
+                </p>
+                <div className="mt-3 flex justify-center">
+                  <CategoryBadge category={selectedData.data.category} />
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {[
+                  { label: "Description", value: selectedData.data.description },
+                  { label: "Date", value: new Date(selectedData.data.date).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) },
+                  { label: "Project", value: selectedData.data.project_name ?? "—" },
+                  { label: "Created", value: new Date(selectedData.data.created_at).toLocaleString() },
+                  { label: "Updated", value: new Date(selectedData.data.updated_at).toLocaleString() },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex items-start justify-between gap-4">
+                    <span className="text-[11px] font-bold tracking-wide uppercase text-slate-400 flex-shrink-0">{label}</span>
+                    <span className="text-sm font-semibold text-slate-700 text-right">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="text-center text-slate-400 py-10 text-sm">Expense not found.</p>
+          )}
+          <DialogFooter className="pt-2">
+            <Button onClick={() => { setViewDialog(false); setSelectedId(null); }} className="rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold w-full">Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── DELETE CONFIRM ── */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-slate-100">
+            <div className="w-12 h-12 bg-rose-50 rounded-2xl flex items-center justify-center mb-4 border border-rose-100">
+              <Trash2 className="w-5 h-5 text-rose-500" />
+            </div>
+            <h3 className="text-base font-bold text-slate-900 mb-1">Delete expense?</h3>
+            <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+              This record will be permanently removed. This action cannot be undone.
             </p>
-
             <div className="flex gap-3">
-              <Button
-                onClick={() => setShowDeleteConfirm(null)}
-                variant="outline"
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => handleDeleteExpense(showDeleteConfirm)}
-                className="flex-1 bg-red-600 hover:bg-red-700"
-                disabled={deleteExpense.isPending}
-              >
-                {deleteExpense.isPending ? "Deleting..." : "Delete"}
-              </Button>
+              <button onClick={() => setShowDeleteConfirm(null)} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
+              <button onClick={() => handleDelete(showDeleteConfirm)} disabled={deleteExpense.isPending}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-rose-600 text-white text-sm font-bold hover:bg-rose-700 disabled:opacity-60 transition-all">
+                {deleteExpense.isPending ? "Deleting…" : "Delete"}
+              </button>
             </div>
           </div>
         </div>
       )}
-
-      {/* Detailed Statistics
-      {expenseStatsData?.data && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Expense Statistics</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div>
-              <h4 className="text-sm font-medium text-gray-500 mb-2">Total Expenses</h4>
-              <p className="text-2xl font-bold text-gray-900">₹{(expenseStatsData.data.total_expenses || 0).toLocaleString()}</p>
-            </div>
-
-            <div>
-              <h4 className="text-sm font-medium text-gray-500 mb-2">Transaction Count</h4>
-              <p className="text-2xl font-bold text-blue-600">{expenseStatsData.data.transaction_count || 0}</p>
-            </div>
-
-            <div>
-              <h4 className="text-sm font-medium text-gray-500 mb-2">Average Expense</h4>
-              <p className="text-2xl font-bold text-green-600">₹{(expenseStatsData.data.average_expense || 0).toLocaleString()}</p>
-            </div>
-
-            <div>
-              <h4 className="text-sm font-medium text-gray-500 mb-2">Highest Expense</h4>
-              <p className="text-2xl font-bold text-purple-600">₹{(expenseStatsData.data.highest_expense || 0).toLocaleString()}</p>
-            </div>
-
-            <div className="md:col-span-2 lg:col-span-4">
-              <h4 className="text-sm font-medium text-gray-500 mb-3">Category Breakdown</h4>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {expenseStatsData.data.category_breakdown && Object.entries(expenseStatsData.data.category_breakdown).map(([category, amount]) => (
-                  <div key={category} className="bg-gray-50 rounded-lg p-3 text-center">
-                    <p className="text-xs text-gray-500 font-medium">{category}</p>
-                    <p className="text-lg font-bold text-gray-900">₹{(amount || 0).toLocaleString()}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )} */}
     </Layout>
   );
 }
-
-// Missing icon components
-const Package = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-  </svg>
-);
-
-const Settings = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-  </svg>
-);
