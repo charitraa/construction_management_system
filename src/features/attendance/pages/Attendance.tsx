@@ -1,20 +1,20 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Calendar,
   Download,
-  Filter,
   ChevronLeft,
   ChevronRight,
   CheckCircle,
   XCircle,
   AlertCircle,
   FileSpreadsheet,
-  UserCheck,
   Users,
   Clock,
   CalendarRange,
   X,
   BarChart3,
+  Search,
+  UserCheck,
 } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import {
@@ -32,61 +32,61 @@ import {
 } from "../types/attendance.types";
 import { useToast } from "@/hooks/use-toast";
 
-// Helper Functions
-const getStatusColor = (status: AttendanceStatus | null) => {
-  if (!status) return "bg-gray-100 text-gray-700 border-gray-200";
-  switch (status) {
-    case "Present":
-      return "bg-emerald-100 text-emerald-700 border-emerald-200";
-    case "Absent":
-      return "bg-rose-100 text-rose-700 border-rose-200";
-    default:
-      return "bg-gray-100 text-gray-700 border-gray-200";
-  }
-};
+/* ─────────────────────── helpers ─────────────────────── */
 
-const getStatusIcon = (status: AttendanceStatus | null) => {
-  switch (status) {
-    case "Present":
-      return <CheckCircle className="w-4 h-4" />;
-    case "Absent":
-      return <XCircle className="w-4 h-4" />;
-    default:
-      return null;
-  }
-};
-
-const formatDate = (dateStr: string) => {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString("en-US", {
+const formatDate = (dateStr: string) =>
+  new Date(dateStr).toLocaleDateString("en-US", {
     weekday: "short",
     year: "numeric",
     month: "short",
     day: "numeric",
   });
+
+const isToday = (dateStr: string) =>
+  dateStr === new Date().toISOString().split("T")[0];
+
+const isPastDate = (dateStr: string) =>
+  dateStr < new Date().toISOString().split("T")[0];
+
+const isFutureDate = (dateStr: string) =>
+  dateStr > new Date().toISOString().split("T")[0];
+
+/* ─────────────────────── status badge ─────────────────────── */
+
+const StatusBadge = ({ status }: { status: AttendanceStatus | null }) => {
+  if (!status)
+    return <span className="text-[11px] text-slate-400 font-medium">Not marked</span>;
+
+  const isPresent = status === "Present";
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border
+        ${isPresent
+          ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+          : "bg-rose-50 text-rose-800 border-rose-200"
+        }`}
+    >
+      <span
+        className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isPresent ? "bg-emerald-400" : "bg-rose-400"}`}
+      />
+      {status}
+    </span>
+  );
 };
 
-const isToday = (dateStr: string) => {
-  const today = new Date().toISOString().split("T")[0];
-  return dateStr === today;
-};
+/* ─────────────────────── field helpers ─────────────────────── */
 
-const isPastDate = (dateStr: string) => {
-  const today = new Date().toISOString().split("T")[0];
-  return dateStr < today;
-};
+const FieldLabel = ({ children }: { children: React.ReactNode }) => (
+  <label className="block text-[10px] font-bold tracking-[.15em] uppercase text-slate-400 mb-1.5">
+    {children}
+  </label>
+);
 
-const isFutureDate = (dateStr: string) => {
-  const today = new Date().toISOString().split("T")[0];
-  return dateStr > today;
-};
+/* ─────────────────────── main page ─────────────────────── */
 
-// Main Component
-export default function AttendanceApp() {
-  // Hooks
+export default function AttendancePage() {
   const { toast } = useToast();
 
-  // State
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split("T")[0],
   );
@@ -95,18 +95,15 @@ export default function AttendanceApp() {
     employeeId: string;
     status: AttendanceStatus;
   } | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState<AttendanceStatus | "all">(
-    "all",
-  );
-
-  // Export Range State
+  const [statusFilter, setStatusFilter] = useState<AttendanceStatus | "all">("all");
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportStartDate, setExportStartDate] = useState<string>(() => {
-    const date = new Date();
-    date.setDate(date.getDate() - 30);
-    return date.toISOString().split("T")[0];
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split("T")[0];
   });
   const [exportEndDate, setExportEndDate] = useState<string>(
     new Date().toISOString().split("T")[0],
@@ -114,15 +111,22 @@ export default function AttendanceApp() {
   const [exportFormat, setExportFormat] = useState<"csv" | "json">("csv");
   const [exportIncludeStats, setExportIncludeStats] = useState(true);
 
-  // API Queries
-  const { data: employeesData, isLoading: isLoadingEmployees } =
-    useEmployeesWithAttendance({
-      date: selectedDate,
-      search: searchTerm,
-      department: departmentFilter,
-      status: statusFilter,
-    });
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchInput);
+    }, 300);
 
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  /* api */
+  const { data: employeesData, isLoading } = useEmployeesWithAttendance({
+    date: selectedDate,
+    search: debouncedSearch,
+    department: departmentFilter,
+    status: statusFilter,
+  });
   const { data: departmentsData } = useDepartments();
   const { data: statsData } = useAttendanceStats(selectedDate);
   const { data: dateRangeSummaryData } = useAttendanceDateRangeSummary({
@@ -131,57 +135,40 @@ export default function AttendanceApp() {
     department: departmentFilter,
     status: statusFilter,
   });
-
-  // Mutations
   const updateAttendance = useUpdateAttendance();
   const createAttendance = useCreateAttendance();
   const { handleExport } = useExportAttendance();
 
-  // Process data
-  const employees = useMemo(
-    () => employeesData?.data || [],
-    [employeesData?.data],
-  );
-  const departments = useMemo(
-    () => departmentsData?.data || ["all"],
-    [departmentsData?.data],
-  );
+  const employees = useMemo(() => employeesData?.data || [], [employeesData?.data]);
+  const departments = useMemo(() => departmentsData?.data || ["all"], [departmentsData?.data]);
   const stats = useMemo(
     () => statsData?.data || { total: 0, present: 0, absent: 0, percentage: 0 },
     [statsData?.data],
   );
-  const getDateRangeSummary = useMemo(
+  const rangeSummary = useMemo(
     () => ({
       totalDays: dateRangeSummaryData?.data?.total_days || 0,
       totalRecords: dateRangeSummaryData?.data?.total_records || 0,
       totalPresent: dateRangeSummaryData?.data?.total_present || 0,
       totalAbsent: dateRangeSummaryData?.data?.total_absent || 0,
-      averageAttendance:
-        dateRangeSummaryData?.data?.average_attendance?.toFixed(1) || "0",
+      averageAttendance: dateRangeSummaryData?.data?.average_attendance?.toFixed(1) || "0",
     }),
     [dateRangeSummaryData?.data],
   );
 
-  // Handle edit attendance
-  const handleEditAttendance = (
-    employeeId: string,
-    currentStatus: AttendanceStatus | null,
-  ) => {
-    if (isPastDate(selectedDate)) {
-      toast({
-        variant: "destructive",
-        title: "Cannot Edit",
-        description:
-          "Cannot edit past dates. Past attendance records are locked.",
-      });
+  const isDateLocked = isPastDate(selectedDate);
+  const isFuture = isFutureDate(selectedDate);
+  const isCurrentToday = isToday(selectedDate);
+  const hasFilters = departmentFilter !== "all" || statusFilter !== "all" || searchInput;
+
+  /* handlers */
+  const handleEditAttendance = (employeeId: string, currentStatus: AttendanceStatus | null) => {
+    if (isDateLocked) {
+      toast({ variant: "destructive", title: "Cannot Edit", description: "Past attendance records are locked." });
       return;
     }
-    if (isFutureDate(selectedDate)) {
-      toast({
-        variant: "destructive",
-        title: "Cannot Mark",
-        description: "Cannot mark attendance for future dates.",
-      });
+    if (isFuture) {
+      toast({ variant: "destructive", title: "Cannot Mark", description: "Cannot mark attendance for future dates." });
       return;
     }
     setEditingRecord({ employeeId, status: currentStatus || "Present" });
@@ -190,51 +177,37 @@ export default function AttendanceApp() {
 
   const handleSaveAttendance = () => {
     if (!editingRecord) return;
-
-    const employee = employees.find(
-      (e: EmployeeWithAttendance) => e.id === editingRecord.employeeId,
-    );
+    const employee = employees.find((e: EmployeeWithAttendance) => e.id === editingRecord.employeeId);
     if (!employee) return;
-
     if (employee.record_id) {
-      // Update existing record
-      updateAttendance.mutate({
-        attendanceId: employee.record_id,
-        data: { status: editingRecord.status },
-      });
+      updateAttendance.mutate({ attendanceId: employee.record_id, data: { status: editingRecord.status } });
     } else {
-      // Create new record
-      createAttendance.mutate({
-        date: selectedDate,
-        employee: employee.id,
-        status: editingRecord.status,
-      });
+      createAttendance.mutate({ date: selectedDate, employee: employee.id, status: editingRecord.status });
     }
-
     setShowEditModal(false);
     setEditingRecord(null);
   };
 
-  // Date navigation
   const handlePreviousDay = () => {
-    const currentDate = new Date(selectedDate);
-    currentDate.setDate(currentDate.getDate() - 1);
-    setSelectedDate(currentDate.toISOString().split("T")[0]);
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() - 1);
+    setSelectedDate(d.toISOString().split("T")[0]);
   };
 
   const handleNextDay = () => {
     const today = new Date().toISOString().split("T")[0];
-    const nextDate = new Date(selectedDate);
-    nextDate.setDate(nextDate.getDate() + 1);
-    const nextDateStr = nextDate.toISOString().split("T")[0];
-    if (nextDateStr <= today) setSelectedDate(nextDateStr);
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() + 1);
+    const next = d.toISOString().split("T")[0];
+    if (next <= today) setSelectedDate(next);
   };
 
-  const handleGoToToday = () => {
-    setSelectedDate(new Date().toISOString().split("T")[0]);
+  const clearFilters = () => {
+    setDepartmentFilter("all");
+    setStatusFilter("all");
+    setSearchInput("");
   };
 
-  // Enhanced Export with Range Filters
   const handleExportData = () => {
     handleExport({
       start_date: exportStartDate,
@@ -247,171 +220,139 @@ export default function AttendanceApp() {
     setShowExportModal(false);
   };
 
-  const isDateLocked = isPastDate(selectedDate);
-  const isFuture = isFutureDate(selectedDate);
-  const isCurrentToday = isToday(selectedDate);
+  /* loading */
+  if (isLoading && employees.length === 0)
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-10 h-10 border-[3px] border-amber-200 border-t-amber-500 rounded-full animate-spin" />
+            <p className="text-sm text-slate-400 font-medium tracking-wide">Loading attendance…</p>
+          </div>
+        </div>
+      </Layout>
+    );
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-        <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Header */}
-          <div className="mb-8">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <h1 className="text-3xl font-bold text-slate-800 tracking-tight">
-                  Attendance Management
-                </h1>
-                <p className="text-slate-500 mt-1">
-                  Track and manage employee attendance records
-                </p>
+      <div className="min-h-screen bg-slate-50/40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-7">
+
+          {/* ── HEADER ── */}
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-1 h-6 bg-red-500 rounded-full" />
+                <span className="text-[10px] font-bold tracking-[.2em] uppercase text-red-600">Construction CMS</span>
               </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setShowExportModal(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all duration-200 shadow-sm"
-                >
-                  <CalendarRange className="w-4 h-4" />
-                  Export with Filters
-                </button>
-              </div>
+              <h1 className="text-[2rem] font-extrabold text-slate-900 leading-tight tracking-tight">Attendance</h1>
+              <p className="text-slate-400 text-sm mt-0.5">Track and manage employee attendance records</p>
             </div>
+            <button
+              onClick={() => setShowExportModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all shadow-sm"
+            >
+              <CalendarRange className="w-4 h-4" />
+              Export with Filters
+            </button>
           </div>
 
-          {/* Date Navigation Card */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 mb-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={handlePreviousDay}
-                  className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
-                >
-                  <ChevronLeft className="w-5 h-5 text-slate-600" />
-                </button>
-                <div className="flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-xl">
-                  <Calendar className="w-5 h-5 text-indigo-500" />
-                  <span className="font-medium text-slate-700">
-                    {formatDate(selectedDate)}
-                  </span>
-                </div>
-                <button
-                  onClick={handleNextDay}
-                  disabled={isCurrentToday}
-                  className={`p-2 rounded-lg transition-colors ${isCurrentToday ? "opacity-40 cursor-not-allowed" : "hover:bg-slate-100"}`}
-                >
-                  <ChevronRight className="w-5 h-5 text-slate-600" />
-                </button>
-                {!isCurrentToday && (
-                  <button
-                    onClick={handleGoToToday}
-                    className="text-sm text-indigo-600 hover:text-indigo-700 font-medium ml-2"
-                  >
-                    Today
-                  </button>
-                )}
+          {/* ── DATE NAV ── */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handlePreviousDay}
+                className="p-2 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-100 transition-all"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
+                <Calendar className="w-4 h-4 text-slate-400" />
+                <span className="text-sm font-semibold text-slate-700">{formatDate(selectedDate)}</span>
               </div>
 
+              <button
+                onClick={handleNextDay}
+                disabled={isCurrentToday}
+                className="p-2 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+
+              {!isCurrentToday && (
+                <button
+                  onClick={() => setSelectedDate(new Date().toISOString().split("T")[0])}
+                  className="text-xs font-semibold text-slate-500 hover:text-slate-800 px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all"
+                >
+                  Today
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
               {isDateLocked && (
-                <div className="flex items-center gap-2 bg-amber-50 px-3 py-1.5 rounded-full">
-                  <Clock className="w-4 h-4 text-amber-600" />
-                  <span className="text-xs font-medium text-amber-700">
-                    Past Date - View Only
-                  </span>
-                </div>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-[11px] font-semibold text-amber-700">
+                  <Clock className="w-3.5 h-3.5" /> Past Date — View Only
+                </span>
               )}
               {isFuture && (
-                <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-full">
-                  <AlertCircle className="w-4 h-4 text-blue-600" />
-                  <span className="text-xs font-medium text-blue-700">
-                    Future Date - Cannot Mark
-                  </span>
-                </div>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-[11px] font-semibold text-blue-700">
+                  <AlertCircle className="w-3.5 h-3.5" /> Future Date — Cannot Mark
+                </span>
+              )}
+              {isCurrentToday && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-[11px] font-semibold text-emerald-700">
+                  <CheckCircle className="w-3.5 h-3.5" /> Today — Editable
+                </span>
               )}
             </div>
           </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-500 font-medium">
-                    Total Staff
-                  </p>
-                  <p className="text-2xl font-bold text-slate-800">
-                    {stats.total}
-                  </p>
-                </div>
-                <div className="bg-indigo-50 p-2 rounded-lg">
-                  <Users className="w-5 h-5 text-indigo-500" />
-                </div>
-              </div>
+          {/* ── STATS ── */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+              <p className="text-[10px] font-bold tracking-[.18em] uppercase text-slate-400">Total Staff</p>
+              <p className="text-2xl font-extrabold text-slate-900 mt-1.5 tabular-nums leading-none">{stats.total}</p>
+              <p className="text-[11px] text-slate-400 mt-1">Active workforce</p>
             </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-500 font-medium">Present</p>
-                  <p className="text-2xl font-bold text-emerald-600">
-                    {stats.present}
-                  </p>
-                </div>
-                <div className="bg-emerald-50 p-2 rounded-lg">
-                  <CheckCircle className="w-5 h-5 text-emerald-500" />
-                </div>
-              </div>
+            <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+              <p className="text-[10px] font-bold tracking-[.18em] uppercase text-emerald-500">Present</p>
+              <p className="text-2xl font-extrabold text-emerald-600 mt-1.5 tabular-nums leading-none">{stats.present}</p>
+              <p className="text-[11px] text-slate-400 mt-1">On site today</p>
             </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-500 font-medium">Absent</p>
-                  <p className="text-2xl font-bold text-rose-600">
-                    {stats.absent}
-                  </p>
-                </div>
-                <div className="bg-rose-50 p-2 rounded-lg">
-                  <XCircle className="w-5 h-5 text-rose-500" />
-                </div>
-              </div>
+            <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+              <p className="text-[10px] font-bold tracking-[.18em] uppercase text-rose-500">Absent</p>
+              <p className="text-2xl font-extrabold text-rose-600 mt-1.5 tabular-nums leading-none">{stats.absent}</p>
+              <p className="text-[11px] text-slate-400 mt-1">Not present</p>
             </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-500 font-medium">
-                    Attendance Rate
-                  </p>
-                  <p className="text-2xl font-bold text-indigo-600">
-                    {stats.percentage.toFixed(1)}%
-                  </p>
-                </div>
-                <div className="bg-indigo-50 p-2 rounded-lg">
-                  <BarChart3 className="w-5 h-5 text-indigo-500" />
-                </div>
-              </div>
+            <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+              <p className="text-[10px] font-bold tracking-[.18em] uppercase text-indigo-500">Rate</p>
+              <p className="text-2xl font-extrabold text-indigo-600 mt-1.5 tabular-nums leading-none">
+                {stats.percentage.toFixed(1)}%
+              </p>
+              <p className="text-[11px] text-slate-400 mt-1">Attendance rate</p>
             </div>
           </div>
 
-          {/* Filters */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1 relative">
+          {/* ── FILTER BAR ── */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
-                  type="text"
-                  placeholder="Search employees..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent pl-10"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder="Search employees…"
+                  className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-300 transition-colors"
                 />
-                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
               </div>
               <select
                 value={departmentFilter}
                 onChange={(e) => setDepartmentFilter(e.target.value)}
-                className="px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                className="px-3 py-2 rounded-xl border border-slate-200 text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-300"
               >
-                {departments.map((dept) => (
+                {departments.map((dept: string) => (
                   <option key={dept} value={dept}>
                     {dept === "all" ? "All Departments" : dept}
                   </option>
@@ -419,428 +360,353 @@ export default function AttendanceApp() {
               </select>
               <select
                 value={statusFilter}
-                onChange={(e) =>
-                  setStatusFilter(e.target.value as AttendanceStatus | "all")
-                }
-                className="px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                onChange={(e) => setStatusFilter(e.target.value as AttendanceStatus | "all")}
+                className="px-3 py-2 rounded-xl border border-slate-200 text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-300"
               >
                 <option value="all">All Status</option>
                 <option value="Present">Present</option>
                 <option value="Absent">Absent</option>
               </select>
+              {hasFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-slate-500 hover:text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
+                >
+                  <X className="w-3.5 h-3.5" /> Clear
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Attendance Table */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">
-                      Employee
-                    </th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">
-                      Department
-                    </th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">
-                      Status
-                    </th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {isLoadingEmployees ? (
-                    <tr>
-                      <td
-                        colSpan={4}
-                        className="px-6 py-12 text-center text-slate-400"
+          {/* ── EMPLOYEE CARDS ── */}
+          {employees.length === 0 ? (
+            <div className="bg-white border border-slate-200 rounded-2xl p-16 text-center shadow-sm">
+              <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Users className="w-8 h-8 text-slate-300" />
+              </div>
+              <h3 className="text-base font-semibold text-slate-700 mb-1">No employees found</h3>
+              <p className="text-sm text-slate-400">
+                {hasFilters ? "Try adjusting your filters" : "No employees available for this date"}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+              {employees.map((employee: EmployeeWithAttendance) => {
+                const initials = employee.name.slice(0, 2).toUpperCase();
+                const isPresent = employee.status === "Present";
+                const isAbsent = employee.status === "Absent";
+
+                return (
+                  <div
+                    key={employee.id}
+                    className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:border-slate-300 transition-colors group relative"
+                  >
+                    {/* mark / edit button */}
+                    <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => handleEditAttendance(employee.id, employee.status as AttendanceStatus | null)}
+                        disabled={isFuture || isDateLocked}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all
+                          ${isFuture || isDateLocked
+                            ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                            : "bg-slate-900 text-white hover:bg-slate-700"
+                          }`}
                       >
-                        Loading employees...
-                      </td>
-                    </tr>
-                  ) : employees.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={4}
-                        className="px-6 py-12 text-center text-slate-400"
-                      >
-                        No employees found
-                      </td>
-                    </tr>
-                  ) : (
-                    employees.map((employee: EmployeeWithAttendance) => (
-                      <tr
-                        key={employee.id}
-                        className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white text-sm font-medium">
-                              {employee.avatar ||
-                                employee.name.slice(0, 2).toUpperCase()}
-                            </div>
-                            <div>
-                              <p className="font-medium text-slate-800">
-                                {employee.name}
-                              </p>
-                              <p className="text-xs text-slate-500">
-                                {employee.email}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-sm text-slate-600">
-                            {employee.department}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          {employee.status ? (
-                            <span
-                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusColor(employee.status)}`}
-                            >
-                              {getStatusIcon(employee.status)}
-                              {employee.status}
-                            </span>
-                          ) : (
-                            <span className="text-sm text-slate-400">
-                              Not marked
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
+                        {employee.status ? "Edit" : "Mark"}
+                      </button>
+                    </div>
+
+                    {/* avatar + name */}
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold flex-shrink-0
+                        ${isPresent ? "bg-emerald-50 text-emerald-800" : isAbsent ? "bg-rose-50 text-rose-800" : "bg-slate-100 text-slate-600"}`}>
+                        {employee.avatar || initials}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-800 text-sm leading-tight">{employee.name}</p>
+                        {employee.department && (
+                          <p className="text-[11px] text-slate-400 mt-0.5">{employee.department}</p>
+                        )}
+                        <div className="mt-1">
+                          <StatusBadge status={employee.status as AttendanceStatus | null} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* details */}
+                    <div className="border-t border-slate-50 pt-3 space-y-2">
+                      {employee.email && (
+                        <div className="flex items-center gap-1.5 text-xs text-slate-500 truncate">
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-300 flex-shrink-0" />
+                          {employee.email}
+                        </div>
+                      )}
+                      {/* quick toggle buttons - only on today */}
+                      {isCurrentToday && (
+                        <div className="flex gap-2 pt-1">
                           <button
-                            onClick={() =>
-                              handleEditAttendance(
-                                employee.id,
-                                employee.status as AttendanceStatus | null,
-                              )
-                            }
-                            disabled={isFuture || isDateLocked}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                              isFuture || isDateLocked
-                                ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                                : "bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
-                            }`}
+                            onClick={() => {
+                              setEditingRecord({ employeeId: employee.id, status: "Present" });
+                              const emp = employees.find((e: EmployeeWithAttendance) => e.id === employee.id);
+                              if (emp?.record_id) {
+                                updateAttendance.mutate({ attendanceId: emp.record_id, data: { status: "Present" } });
+                              } else {
+                                createAttendance.mutate({ date: selectedDate, employee: employee.id, status: "Present" });
+                              }
+                            }}
+                            className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all
+                              ${isPresent
+                                ? "bg-emerald-500 text-white"
+                                : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+                              }`}
                           >
-                            {employee.status ? "Edit" : "Mark"}
+                            ✓ Present
                           </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                          <button
+                            onClick={() => {
+                              const emp = employees.find((e: EmployeeWithAttendance) => e.id === employee.id);
+                              if (emp?.record_id) {
+                                updateAttendance.mutate({ attendanceId: emp.record_id, data: { status: "Absent" } });
+                              } else {
+                                createAttendance.mutate({ date: selectedDate, employee: employee.id, status: "Absent" });
+                              }
+                            }}
+                            className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all
+                              ${isAbsent
+                                ? "bg-rose-500 text-white"
+                                : "bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200"
+                              }`}
+                          >
+                            ✗ Absent
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </div>
+          )}
 
-          {/* Footer note */}
-          <div className="mt-6 text-center text-xs text-slate-400">
-            <p>
-              ✓ Today's attendance can be edited | ✗ Past dates are locked (view
-              only) | ✗ Future dates cannot be modified
+          {/* ── FOOTER NOTE ── */}
+          <p className="text-center text-[11px] text-slate-400">
+            ✓ Today's attendance is editable &nbsp;·&nbsp; Past dates are locked (view only) &nbsp;·&nbsp; Future dates cannot be modified
+          </p>
+
+        </div>
+      </div>
+
+      {/* ── MARK / EDIT MODAL ── */}
+      {showEditModal && editingRecord && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-slate-100">
+            <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center mb-4 border border-slate-200">
+              <UserCheck className="w-5 h-5 text-slate-600" />
+            </div>
+            <h3 className="text-base font-bold text-slate-900 mb-1">Mark Attendance</h3>
+            <p className="text-sm text-slate-500 mb-5">
+              {employees.find((e: EmployeeWithAttendance) => e.id === editingRecord?.employeeId)?.name}
             </p>
+
+            <FieldLabel>Status</FieldLabel>
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              {(["Present", "Absent"] as AttendanceStatus[]).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setEditingRecord({ ...editingRecord!, status })}
+                  className={`py-2.5 rounded-xl text-sm font-bold transition-all
+                    ${editingRecord?.status === status
+                      ? status === "Present"
+                        ? "bg-emerald-500 text-white shadow-md"
+                        : "bg-rose-500 text-white shadow-md"
+                      : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200"
+                    }`}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveAttendance}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition-all"
+              >
+                Save
+              </button>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Enhanced Export Modal with Range Filters */}
-        {showExportModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl max-w-2xl w-full shadow-xl animate-in fade-in zoom-in duration-200">
-              <div className="flex items-center justify-between p-6 border-b border-slate-200">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
-                    <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
+      {/* ── EXPORT MODAL ── */}
+      {showExportModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-slate-100 overflow-hidden">
+
+            {/* modal header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200">
+                  <FileSpreadsheet className="w-4 h-4 text-slate-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900">Export Attendance Data</p>
+                  <p className="text-[11px] text-slate-400">Select range and format</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExportModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+
+              {/* date range */}
+              <div>
+                <FieldLabel>Date Range</FieldLabel>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[10px] text-slate-400 mb-1">Start</p>
+                    <input
+                      type="date"
+                      value={exportStartDate}
+                      onChange={(e) => setExportStartDate(e.target.value)}
+                      max={exportEndDate}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                    />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-slate-800">
-                      Export Attendance Data
-                    </h2>
-                    <p className="text-sm text-slate-500">
-                      Export with date range and filters
-                    </p>
+                    <p className="text-[10px] text-slate-400 mb-1">End</p>
+                    <input
+                      type="date"
+                      value={exportEndDate}
+                      onChange={(e) => setExportEndDate(e.target.value)}
+                      min={exportStartDate}
+                      max={new Date().toISOString().split("T")[0]}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                    />
                   </div>
                 </div>
-                <button
-                  onClick={() => setShowExportModal(false)}
-                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                >
-                  <X className="w-5 h-5 text-slate-500" />
-                </button>
               </div>
 
-              <div className="p-6 space-y-6">
-                {/* Date Range Selection */}
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-3">
-                    Select Date Range
-                  </label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs text-slate-500 mb-1">
-                        Start Date
-                      </label>
-                      <input
-                        type="date"
-                        value={exportStartDate}
-                        onChange={(e) => setExportStartDate(e.target.value)}
-                        max={exportEndDate}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-slate-500 mb-1">
-                        End Date
-                      </label>
-                      <input
-                        type="date"
-                        value={exportEndDate}
-                        onChange={(e) => setExportEndDate(e.target.value)}
-                        min={exportStartDate}
-                        max={new Date().toISOString().split("T")[0]}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                    </div>
-                  </div>
+              {/* quick select */}
+              <div>
+                <FieldLabel>Quick Select</FieldLabel>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: "Last 7 Days", days: 7 },
+                    { label: "Last 30 Days", days: 30 },
+                    { label: "This Month", days: "month" },
+                    { label: "Last Month", days: "lastMonth" },
+                  ].map((range) => (
+                    <button
+                      key={range.label}
+                      onClick={() => {
+                        const end = new Date();
+                        let start = new Date();
+                        if (range.days === "month") {
+                          start = new Date(end.getFullYear(), end.getMonth(), 1);
+                        } else if (range.days === "lastMonth") {
+                          start = new Date(end.getFullYear(), end.getMonth() - 1, 1);
+                          end.setDate(0);
+                        } else {
+                          start.setDate(end.getDate() - (range.days as number));
+                        }
+                        setExportStartDate(start.toISOString().split("T")[0]);
+                        setExportEndDate(end.toISOString().split("T")[0]);
+                      }}
+                      className="px-3 py-1.5 text-[11px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors"
+                    >
+                      {range.label}
+                    </button>
+                  ))}
                 </div>
+              </div>
 
-                {/* Quick Date Range Buttons */}
+              {/* summary preview */}
+              <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <BarChart3 className="w-3.5 h-3.5 text-slate-400" />
+                  <p className="text-[10px] font-bold tracking-[.15em] uppercase text-slate-400">Export Preview</p>
+                </div>
+                <div className="grid grid-cols-4 gap-3">
+                  {[
+                    { label: "Days", value: rangeSummary.totalDays, color: "text-slate-800" },
+                    { label: "Records", value: rangeSummary.totalRecords, color: "text-slate-800" },
+                    { label: "Present", value: rangeSummary.totalPresent, color: "text-emerald-700" },
+                    { label: "Absent", value: rangeSummary.totalAbsent, color: "text-rose-700" },
+                  ].map((item) => (
+                    <div key={item.label}>
+                      <p className="text-[10px] text-slate-400">{item.label}</p>
+                      <p className={`text-base font-extrabold tabular-nums ${item.color}`}>{item.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* format + options */}
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs text-slate-500 mb-2">
-                    Quick Select
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { label: "Last 7 Days", days: 7 },
-                      { label: "Last 30 Days", days: 30 },
-                      { label: "This Month", days: "month" },
-                      { label: "Last Month", days: "lastMonth" },
-                    ].map((range) => (
-                      <button
-                        key={range.label}
-                        onClick={() => {
-                          const end = new Date();
-                          let start = new Date();
-                          if (range.days === "month") {
-                            start = new Date(
-                              end.getFullYear(),
-                              end.getMonth(),
-                              1,
-                            );
-                          } else if (range.days === "lastMonth") {
-                            start = new Date(
-                              end.getFullYear(),
-                              end.getMonth() - 1,
-                              1,
-                            );
-                            end.setDate(0);
-                          } else {
-                            start.setDate(
-                              end.getDate() - (range.days as number),
-                            );
-                          }
-                          setExportStartDate(start.toISOString().split("T")[0]);
-                          setExportEndDate(end.toISOString().split("T")[0]);
-                        }}
-                        className="px-3 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
-                      >
-                        {range.label}
-                      </button>
+                  <FieldLabel>Format</FieldLabel>
+                  <div className="flex gap-3">
+                    {(["csv", "json"] as const).map((fmt) => (
+                      <label key={fmt} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          value={fmt}
+                          checked={exportFormat === fmt}
+                          onChange={() => setExportFormat(fmt)}
+                          className="w-4 h-4 accent-slate-900"
+                        />
+                        <span className="text-sm font-semibold text-slate-700 uppercase">{fmt}</span>
+                      </label>
                     ))}
                   </div>
                 </div>
-
-                {/* Current Filters Display */}
-                <div className="bg-slate-50 rounded-lg p-4">
-                  <p className="text-sm font-medium text-slate-700 mb-2">
-                    Current Filters Applied:
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="text-xs bg-white px-2 py-1 rounded border border-slate-200">
-                      Department:{" "}
-                      {departmentFilter === "all" ? "All" : departmentFilter}
-                    </span>
-                    <span className="text-xs bg-white px-2 py-1 rounded border border-slate-200">
-                      Status: {statusFilter === "all" ? "All" : statusFilter}
-                    </span>
-                    <span className="text-xs bg-white px-2 py-1 rounded border border-slate-200">
-                      Date Range: {exportStartDate} to {exportEndDate}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Export Summary Preview */}
-                <div className="bg-indigo-50 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <BarChart3 className="w-4 h-4 text-indigo-600" />
-                    <p className="text-sm font-medium text-indigo-900">
-                      Export Summary Preview
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <p className="text-indigo-600">Total Days</p>
-                      <p className="font-semibold text-indigo-900">
-                        {getDateRangeSummary.totalDays}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-indigo-600">Total Records</p>
-                      <p className="font-semibold text-indigo-900">
-                        {getDateRangeSummary.totalRecords}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-emerald-600">Present</p>
-                      <p className="font-semibold text-emerald-900">
-                        {getDateRangeSummary.totalPresent}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-rose-600">Absent</p>
-                      <p className="font-semibold text-rose-900">
-                        {getDateRangeSummary.totalAbsent}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Export Options */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Export Format
-                    </label>
-                    <div className="flex gap-3">
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="radio"
-                          value="csv"
-                          checked={exportFormat === "csv"}
-                          onChange={(e) =>
-                            setExportFormat(e.target.value as "csv")
-                          }
-                          className="w-4 h-4 text-indigo-600"
-                        />
-                        <span className="text-sm">CSV</span>
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="radio"
-                          value="json"
-                          checked={exportFormat === "json"}
-                          onChange={(e) =>
-                            setExportFormat(e.target.value as "json")
-                          }
-                          className="w-4 h-4 text-indigo-600"
-                        />
-                        <span className="text-sm">JSON</span>
-                      </label>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="flex items-center gap-2 mt-6">
-                      <input
-                        type="checkbox"
-                        checked={exportIncludeStats}
-                        onChange={(e) =>
-                          setExportIncludeStats(e.target.checked)
-                        }
-                        className="w-4 h-4 text-indigo-600 rounded"
-                      />
-                      <span className="text-sm">
-                        Include summary statistics
-                      </span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-3 p-6 border-t border-slate-200 bg-slate-50 rounded-b-2xl">
-                <button
-                  onClick={() => setShowExportModal(false)}
-                  className="flex-1 px-4 py-2 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleExportData}
-                  className="flex-1 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-colors flex items-center justify-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  Export {exportFormat.toUpperCase()}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Edit/Add Modal */}
-        {showEditModal && editingRecord && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl max-w-md w-full shadow-xl animate-in fade-in zoom-in duration-200">
-              <div className="p-6">
-                <h2 className="text-xl font-bold text-slate-800 mb-2">
-                  Mark Attendance
-                </h2>
-                <p className="text-slate-500 mb-4">
-                  {
-                    employees.find(
-                      (e: EmployeeWithAttendance) =>
-                        e.id === editingRecord?.employeeId,
-                    )?.name
-                  }
-                </p>
-
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Status
+                <div>
+                  <FieldLabel>Options</FieldLabel>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={exportIncludeStats}
+                      onChange={(e) => setExportIncludeStats(e.target.checked)}
+                      className="w-4 h-4 accent-slate-900 rounded"
+                    />
+                    <span className="text-sm text-slate-600">Include summary stats</span>
                   </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {(["Present", "Absent"] as AttendanceStatus[]).map(
-                      (status) => (
-                        <button
-                          key={status}
-                          onClick={() =>
-                            setEditingRecord({ ...editingRecord!, status })
-                          }
-                          className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                            editingRecord?.status === status
-                              ? status === "Present"
-                                ? "bg-emerald-500 text-white shadow-md"
-                                : "bg-rose-500 text-white shadow-md"
-                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                          }`}
-                        >
-                          {status}
-                        </button>
-                      ),
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowEditModal(false)}
-                    className="flex-1 px-4 py-2 border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSaveAttendance}
-                    className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
-                  >
-                    Save
-                  </button>
                 </div>
               </div>
             </div>
+
+            {/* modal footer */}
+            <div className="flex gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/60">
+              <button
+                onClick={() => setShowExportModal(false)}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExportData}
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition-all"
+              >
+                <Download className="w-4 h-4" />
+                Download {exportFormat.toUpperCase()}
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </Layout>
   );
 }
