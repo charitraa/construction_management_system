@@ -5,6 +5,7 @@ export interface Revenue {
   amount: string;
   project: string;
   client_name?: string;
+  pay_method: string;
   created_at: string;
   updated_at: string;
 }

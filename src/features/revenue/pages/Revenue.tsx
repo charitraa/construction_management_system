@@ -6,7 +6,7 @@ import {
   Plus, Search, Calendar, DollarSign, TrendingUp, Wallet,
   PieChart, X, ChevronLeft, ChevronRight, Building2,
   Trash2, Edit2, Eye, Download, TrendingDown, ArrowUpRight,
-  Hash, Package
+  Hash, Package, CreditCard, CheckCircle2, Clock, AlertCircle
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -17,13 +17,54 @@ import {
 } from "../index";
 
 
-
-
-
 const fmtINR = (n: number) =>
   n >= 1e7 ? `₹${(n / 1e7).toFixed(2)}Cr`
     : n >= 1e5 ? `₹${(n / 1e5).toFixed(1)}L`
       : `Rs. ${Math.round(n).toLocaleString("en-IN")}`;
+
+/* ─────────────────────── status badge ─────────────────────── */
+
+const STATUS_CONFIG: Record<string, { label: string; className: string; icon: React.ReactNode }> = {
+  Received: {
+    label: "Received",
+    className: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    icon: <CheckCircle2 className="w-3 h-3" />,
+  },
+  Pending: {
+    label: "Pending",
+    className: "bg-amber-50 text-amber-700 border-amber-200",
+    icon: <Clock className="w-3 h-3" />,
+  },
+  Overdue: {
+    label: "Overdue",
+    className: "bg-rose-50 text-rose-700 border-rose-200",
+    icon: <AlertCircle className="w-3 h-3" />,
+  },
+};
+
+const PAY_METHOD_CONFIG: Record<string, { label: string; className: string }> = {
+  Cash: { label: "Cash", className: "bg-slate-100 text-slate-600" },
+  Online: { label: "Online", className: "bg-blue-50 text-blue-700" },
+  Check: { label: "Check", className: "bg-violet-50 text-violet-700" },
+};
+
+const StatusBadge = ({ status }: { status: string }) => {
+  const cfg = STATUS_CONFIG[status] ?? { label: status, className: "bg-slate-100 text-slate-600 border-slate-200", icon: null };
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${cfg.className}`}>
+      {cfg.icon}{cfg.label}
+    </span>
+  );
+};
+
+const PayMethodBadge = ({ method }: { method: string }) => {
+  const cfg = PAY_METHOD_CONFIG[method] ?? { label: method, className: "bg-slate-100 text-slate-600" };
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold ${cfg.className}`}>
+      <CreditCard className="w-3 h-3" />{cfg.label}
+    </span>
+  );
+};
 
 /* ─────────────────────── stat card ─────────────────────── */
 
@@ -59,8 +100,12 @@ const FieldError = ({ msg }: { msg?: string }) =>
 
 interface RevenueForm {
   description: string;
-  amount: string; project: string; date: string;
+  amount: string;
+  project: string;
+  date: string;
   client_name: string;
+  pay_method: string;
+  status: string;
 }
 
 const RevenueFormBody = ({
@@ -94,15 +139,30 @@ const RevenueFormBody = ({
         <FieldError msg={errors.client_name} />
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
+      <div>
+        <FieldLabel>Amount (₹)</FieldLabel>
+        <Input type="number" value={form.amount}
+          onChange={e => { setForm({ ...form, amount: e.target.value }); clear("amount"); }}
+          placeholder="e.g. 125000"
+          className={`rounded-xl border-slate-200 focus-visible:ring-emerald-300 ${errors.amount ? "border-rose-400" : ""}`}
+        />
+        <FieldError msg={errors.amount} />
+      </div>
+
+      {/* Payment Method + Status side by side */}
+      <div className="grid grid-cols-2 gap-4">
         <div>
-          <FieldLabel>Amount (₹)</FieldLabel>
-          <Input type="number" value={form.amount}
-            onChange={e => { setForm({ ...form, amount: e.target.value }); clear("amount"); }}
-            placeholder="e.g. 125000"
-            className={`rounded-xl border-slate-200 focus-visible:ring-emerald-300 ${errors.amount ? "border-rose-400" : ""}`}
-          />
-          <FieldError msg={errors.amount} />
+          <FieldLabel>Payment Method</FieldLabel>
+          <select
+            value={form.pay_method}
+            onChange={e => { setForm({ ...form, pay_method: e.target.value }); clear("pay_method"); }}
+            className={`w-full px-3 py-2.5 border rounded-xl text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-300 ${errors.pay_method ? "border-rose-400" : "border-slate-200"}`}
+          >
+            <option value="Cash">Cash</option>
+            <option value="Online">Online</option>
+            <option value="Check">Check</option>
+          </select>
+          <FieldError msg={errors.pay_method} />
         </div>
       </div>
 
@@ -139,6 +199,8 @@ export default function Revenue() {
   const [isDebouncing, setIsDebouncing] = useState(false);
 
   const [projectFilter, setProjectFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [payMethodFilter, setPayMethodFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
   const [currentPage, setCurrentPage] = useState(1);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
@@ -147,7 +209,8 @@ export default function Revenue() {
 
   const blankForm: RevenueForm = {
     description: "", amount: "", project: "",
-    date: new Date().toISOString().split("T")[0], client_name: "",
+    date: new Date().toISOString().split("T")[0],
+    client_name: "", pay_method: "Cash", status: "Received",
   };
   const [form, setForm] = useState<RevenueForm>(blankForm);
   const [editForm, setEditForm] = useState<RevenueForm>(blankForm);
@@ -156,6 +219,7 @@ export default function Revenue() {
     page: currentPage, page_size: 10,
     search: debouncedSearch || undefined,
     project: projectFilter !== "all" ? projectFilter : undefined,
+    pay_method: payMethodFilter !== "all" ? payMethodFilter : undefined,
     start_date: dateRange.start || undefined,
     end_date: dateRange.end || undefined,
   });
@@ -190,7 +254,9 @@ export default function Revenue() {
     return () => { clearTimeout(t); setIsDebouncing(false); };
   }, [searchTerm]);
 
-  useEffect(() => { setCurrentPage(1); }, [debouncedSearch, projectFilter, dateRange.start, dateRange.end]);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, projectFilter, statusFilter, payMethodFilter, dateRange.start, dateRange.end]);
 
   /* validation */
   const validate = (f: RevenueForm) => {
@@ -199,6 +265,7 @@ export default function Revenue() {
     if (!f.client_name.trim()) e.client_name = "Client name is required";
     if (!f.amount.trim() || isNaN(+f.amount) || +f.amount <= 0) e.amount = "Enter a valid positive amount";
     if (!f.project) e.project = "Select a project";
+    if (!f.pay_method) e.pay_method = "Select a payment method";
     return e;
   };
 
@@ -232,20 +299,26 @@ export default function Revenue() {
 
   const openEdit = (rev: any) => {
     setEditForm({
-      description: rev.description, amount: rev.amount,
-      project: rev.project ?? "", date: rev.date, client_name: rev.client_name ?? "",
+      description: rev.description,
+      amount: rev.amount,
+      project: rev.project ?? "",
+      date: rev.date,
+      client_name: rev.client_name ?? "",
+      pay_method: rev.pay_method ?? "Cash",
+      status: rev.status ?? "Received",
     });
     setSelectedId(rev.id);
     setEditErrors({});
     setEditDialog(true);
   };
 
-  const clearFilters = () => { setSearchTerm(""); setProjectFilter("all"); setDateRange({ start: "", end: "" }); setCurrentPage(1); };
+  const clearFilters = () => {
+    setSearchTerm(""); setProjectFilter("all");
+    setStatusFilter("all"); setPayMethodFilter("all");
+    setDateRange({ start: "", end: "" }); setCurrentPage(1);
+  };
 
-  const hasFilters = debouncedSearch || projectFilter !== "all" || dateRange.start || dateRange.end;
-
-  /* category bar chart max */
-  const maxCat = Math.max(...Object.values(stats.breakdown), 1);
+  const hasFilters = debouncedSearch || projectFilter !== "all" || statusFilter !== "all" || payMethodFilter !== "all" || dateRange.start || dateRange.end;
 
   /* ── loading ── */
   if (isLoading) return (
@@ -301,9 +374,6 @@ export default function Revenue() {
             <StatCard label="Total Records" value={(stats.count)} sub="Count" accent="bg-amber-50" iconColor="text-amber-600" icon={<PieChart className="w-5 h-5" />} />
           </div>
 
-          {/* ── CATEGORY BREAKDOWN ── */}
-
-
           {/* ── FILTER BAR ── */}
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
             <div className="flex flex-col sm:flex-row gap-3">
@@ -323,6 +393,15 @@ export default function Revenue() {
                 <option value="all">All Projects</option>
                 {projects.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
+              
+              {/* pay method filter */}
+              <select value={payMethodFilter} onChange={e => { setPayMethodFilter(e.target.value); setCurrentPage(1); }}
+                className="px-3 py-2 rounded-xl border border-slate-200 text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-300">
+                <option value="all">All Methods</option>
+                <option value="Cash">Cash</option>
+                <option value="Online">Online</option>
+                <option value="Check">Check</option>
+              </select>
             </div>
 
             {/* date range */}
@@ -334,7 +413,7 @@ export default function Revenue() {
                   className="pl-10 rounded-xl border-slate-200 focus-visible:ring-emerald-300 w-full sm:w-44"
                 />
               </div>
-              <div className="flex items-center text-slate-300 text-sm px-1 hidden sm:flex">→</div>
+              <div className="items-center text-slate-300 text-sm px-1 hidden sm:flex">→</div>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input type="date" value={dateRange.end}
@@ -356,6 +435,8 @@ export default function Revenue() {
                 {[
                   debouncedSearch && { label: `"${debouncedSearch}"`, onRemove: () => setSearchTerm("") },
                   projectFilter !== "all" && { label: projects.find((p: any) => p.id === projectFilter)?.name ?? projectFilter, onRemove: () => setProjectFilter("all") },
+                  statusFilter !== "all" && { label: statusFilter, onRemove: () => setStatusFilter("all") },
+                  payMethodFilter !== "all" && { label: payMethodFilter, onRemove: () => setPayMethodFilter("all") },
                   dateRange.start && { label: `From ${dateRange.start}`, onRemove: () => setDateRange(d => ({ ...d, start: "" })) },
                   dateRange.end && { label: `To ${dateRange.end}`, onRemove: () => setDateRange(d => ({ ...d, end: "" })) },
                 ].filter(Boolean).map((chip: any, i) => (
@@ -391,8 +472,8 @@ export default function Revenue() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-slate-100 bg-slate-50/70">
-                        {["Date", "Client", "Description", "Project", "Amount", ""].map((h, i) => (
-                          <th key={i} className={`px-5 py-3.5 text-[10px] font-bold tracking-[.15em] uppercase text-slate-400 ${i === 5 ? "text-right" : i === 6 ? "text-center" : "text-left"}`}>
+                        {["Date", "Client", "Description", "Project", "Method", "Amount", ""].map((h, i) => (
+                          <th key={i} className={`px-5 py-3.5 text-[10px] font-bold tracking-[.15em] uppercase text-slate-400 ${i === 5 ? "text-right" : "text-left"}`}>
                             {h}
                           </th>
                         ))}
@@ -410,12 +491,16 @@ export default function Revenue() {
                           <td className="px-5 py-3.5 font-medium text-slate-800">
                             {rev.client_name || "—"}
                           </td>
-                          <td className="px-5 py-3.5 text-slate-600 max-w-[200px] truncate">
+                          <td className="px-5 py-3.5 text-slate-600 max-w-[180px] truncate">
                             {rev.description}
                           </td>
-                          <td className="px-5 py-3.5 text-slate-500 max-w-[140px] truncate">
+                          <td className="px-5 py-3.5 text-slate-500 max-w-[120px] truncate">
                             {projects.find((p: any) => p.id === rev.project)?.name ?? rev.project ?? "—"}
                           </td>
+                          <td className="px-5 py-3.5">
+                            <PayMethodBadge method={rev.pay_method ?? "Cash"} />
+                          </td>
+                          
                           <td className="px-5 py-3.5 text-right font-bold text-emerald-600 tabular-nums whitespace-nowrap">
                             ₹{parseFloat(rev.amount).toLocaleString("en-IN")}
                           </td>
@@ -431,7 +516,7 @@ export default function Revenue() {
                     </tbody>
                     <tfoot>
                       <tr className="border-t border-slate-200 bg-slate-50/70">
-                        <td colSpan={5} className="px-5 py-3.5 text-[11px] font-bold tracking-[.12em] uppercase text-slate-400">
+                        <td colSpan={6} className="px-5 py-3.5 text-[11px] font-bold tracking-[.12em] uppercase text-slate-400">
                           Page Total
                         </td>
                         <td className="px-5 py-3.5 text-right font-extrabold text-slate-900 tabular-nums">
@@ -545,6 +630,13 @@ export default function Revenue() {
                 <p className="text-4xl font-extrabold text-white tabular-nums">
                   ₹{parseFloat(selectedData.data.amount).toLocaleString("en-IN")}
                 </p>
+                {/* status + method badges below amount */}
+                <div className="flex items-center justify-center gap-2 mt-3">
+                  
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold ${PAY_METHOD_CONFIG[selectedData.data.pay_method]?.className ?? "bg-white/20 text-white"}`}>
+                    <CreditCard className="w-3 h-3" />{selectedData.data.pay_method}
+                  </span>
+                </div>
               </div>
 
               <div className="space-y-3">

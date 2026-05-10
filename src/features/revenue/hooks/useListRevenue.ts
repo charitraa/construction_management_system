@@ -8,6 +8,7 @@ export const useListRevenue = (params?: {
   start_date?: string;
   end_date?: string;
   project?: string;
+  pay_method?: string;
   page?: number;
   page_size?: number;
 }) => {
