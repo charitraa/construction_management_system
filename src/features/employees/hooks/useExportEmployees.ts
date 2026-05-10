@@ -23,6 +23,7 @@ export const useExportEmployees = () => {
       document.body.removeChild(link);
 
       toast({
+        variant: "success",
         title: "Export Successful",
         description: "Employee data has been exported to CSV",
       });

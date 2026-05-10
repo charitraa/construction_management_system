@@ -23,6 +23,7 @@ export const useUpdateExpense = () => {
       queryClient.invalidateQueries({ queryKey: [EXPENSE_QUERY_KEYS.DETAIL] });
       queryClient.invalidateQueries({ queryKey: [EXPENSE_QUERY_KEYS.STATS] });
       toast({
+        variant: "success",
         title: "Expense Updated",
         description: "Expense has been successfully updated",
       });

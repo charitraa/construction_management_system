@@ -21,6 +21,7 @@ export const useCreateAdvance = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [ADVANCE_QUERY_KEYS.LIST] });
       toast({
+        variant: "success",
         title: "Advance Recorded",
         description: "Advance has been successfully recorded",
       });

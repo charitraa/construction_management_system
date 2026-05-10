@@ -93,23 +93,21 @@ export const attendanceServices = {
   exportAttendance: (params: {
     start_date: string;
     end_date: string;
-    format?: "csv" | "json";
+    export_format: "csv" | "json";  // ← renamed to match backend
     include_stats?: boolean;
     department?: string;
     status?: string;
   }) => {
-    const format = params.format || "csv";
-    const include_stats = params.include_stats !== false;
+    const { export_format, ...rest } = params;
 
     return httpClient.get(
       ATTENDANCE_ENDPOINTS.EXPORT,
       {
         params: {
-          ...params,
-          format,
-          include_stats,
+          ...rest,
+          export_format,
         },
-        responseType: format === "csv" ? "blob" : "json",
+        responseType: export_format === "csv" ? "blob" : "json",
       }
     );
   },

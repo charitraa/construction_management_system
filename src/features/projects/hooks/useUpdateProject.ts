@@ -23,6 +23,7 @@ export const useUpdateProject = () => {
       queryClient.invalidateQueries({ queryKey: [PROJECT_QUERY_KEYS.STATS] });
 
       toast({
+        variant: "success",
         title: "Project Updated",
         description: "Project has been successfully updated",
       });

@@ -22,6 +22,7 @@ export const useUpdateEmployee = () => {
       queryClient.invalidateQueries({ queryKey: [EMPLOYEE_QUERY_KEYS.LIST] });
       queryClient.invalidateQueries({ queryKey: [EMPLOYEE_QUERY_KEYS.STATS] });
       toast({
+        variant: "success",
         title: "Employee Updated",
         description: "Employee has been successfully updated",
       });

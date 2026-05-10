@@ -20,6 +20,7 @@ export const useLogin = () => {
       queryClient.invalidateQueries({ queryKey: [AUTH_QUERY_KEYS.PROFILE] });
 
       toast({
+        variant: "success",
         title: "Login Successful",
         description: "Welcome back!",
       });

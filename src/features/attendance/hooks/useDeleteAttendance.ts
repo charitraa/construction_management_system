@@ -27,6 +27,7 @@ export const useDeleteAttendance = () => {
         queryKey: [ATTENDANCE_QUERY_KEYS.SUMMARY],
       });
       toast({
+        variant: "success",
         title: "Attendance Deleted",
         description: "Attendance record has been successfully deleted",
       });

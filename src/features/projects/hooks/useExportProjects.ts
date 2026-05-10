@@ -26,6 +26,7 @@ export const useExportProjects = () => {
       window.URL.revokeObjectURL(url);
 
       toast({
+        variant: "success",
         title: "Export Successful",
         description: "Projects have been exported to CSV",
       });

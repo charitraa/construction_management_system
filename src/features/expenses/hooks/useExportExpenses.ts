@@ -28,6 +28,7 @@ export const useExportExpenses = () => {
       window.URL.revokeObjectURL(url);
 
       toast({
+        variant: "success",
         title: "Export Successful",
         description: "Expenses have been exported to CSV",
       });

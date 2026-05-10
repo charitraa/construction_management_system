@@ -212,7 +212,7 @@ export default function AttendancePage() {
     handleExport({
       start_date: exportStartDate,
       end_date: exportEndDate,
-      format: exportFormat,
+      export_format: exportFormat,
       include_stats: exportIncludeStats,
       department: departmentFilter,
       status: statusFilter,
@@ -401,21 +401,6 @@ export default function AttendancePage() {
                     key={employee.id}
                     className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:border-slate-300 transition-colors group relative"
                   >
-                    {/* mark / edit button */}
-                    <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => handleEditAttendance(employee.id, employee.status as AttendanceStatus | null)}
-                        disabled={isFuture || isDateLocked}
-                        className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all
-                          ${isFuture || isDateLocked
-                            ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                            : "bg-slate-900 text-white hover:bg-slate-700"
-                          }`}
-                      >
-                        {employee.status ? "Edit" : "Mark"}
-                      </button>
-                    </div>
-
                     {/* avatar + name */}
                     <div className="flex items-center gap-3 mb-4">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold flex-shrink-0
@@ -659,7 +644,7 @@ export default function AttendancePage() {
                 <div>
                   <FieldLabel>Format</FieldLabel>
                   <div className="flex gap-3">
-                    {(["csv", "json"] as const).map((fmt) => (
+                    {(["csv"] as const).map((fmt) => (
                       <label key={fmt} className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="radio"

@@ -23,6 +23,7 @@ export const useCreateProject = () => {
       queryClient.invalidateQueries({ queryKey: [PROJECT_QUERY_KEYS.STATS] });
 
       toast({
+        variant: "success",
         title: "Project Created",
         description: "Project has been successfully created",
       });

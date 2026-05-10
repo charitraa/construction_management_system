@@ -26,6 +26,7 @@ export const useExportRevenue = () => {
       window.URL.revokeObjectURL(url);
 
       toast({
+        variant: "success",
         title: "Export Successful",
         description: "Revenue data has been exported to CSV",
       });

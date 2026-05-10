@@ -14,6 +14,7 @@ export const useDeleteEmployee = () => {
       queryClient.invalidateQueries({ queryKey: [EMPLOYEE_QUERY_KEYS.LIST] });
       queryClient.invalidateQueries({ queryKey: [EMPLOYEE_QUERY_KEYS.STATS] });
       toast({
+        variant: "success",
         title: "Employee Deleted",
         description: "Employee has been successfully deleted",
       });

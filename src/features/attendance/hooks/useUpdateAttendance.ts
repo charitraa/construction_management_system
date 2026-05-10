@@ -34,6 +34,7 @@ export const useUpdateAttendance = () => {
         queryKey: [ATTENDANCE_QUERY_KEYS.SUMMARY],
       });
       toast({
+        variant: "success",
         title: "Attendance Updated",
         description: "Attendance has been successfully updated",
       });

@@ -21,6 +21,7 @@ export const useCreateRevenue = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [REVENUE_QUERY_KEYS.LIST] });
       toast({
+        variant: "success",
         title: "Revenue Recorded",
         description: "Revenue has been successfully recorded",
       });

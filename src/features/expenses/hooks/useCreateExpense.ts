@@ -21,6 +21,7 @@ export const useCreateExpense = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [EXPENSE_QUERY_KEYS.LIST] });
       toast({
+        variant: "success",
         title: "Expense Recorded",
         description: "Expense has been successfully recorded",
       });

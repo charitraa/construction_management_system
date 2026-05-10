@@ -20,6 +20,7 @@ export const useDeleteRevenue = () => {
       queryClient.invalidateQueries({ queryKey: [REVENUE_QUERY_KEYS.STATS] });
 
       toast({
+        variant: "success",
         title: "Revenue Deleted",
         description: "Revenue record has been successfully deleted",
       });

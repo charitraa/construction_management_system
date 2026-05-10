@@ -11,6 +11,7 @@ export const useLogout = () => {
     mutationKey: [AUTH_QUERY_KEYS.LOGOUT],
     onSuccess: () => {
       toast({
+        variant: "success",
         title: "Logged out",
         description: "You have been successfully logged out",
       });

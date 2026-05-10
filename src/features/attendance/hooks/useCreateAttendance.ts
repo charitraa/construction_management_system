@@ -26,7 +26,11 @@ export const useCreateAttendance = () => {
       queryClient.invalidateQueries({
         queryKey: [ATTENDANCE_QUERY_KEYS.STATS],
       });
+       queryClient.invalidateQueries({
+        queryKey: [ATTENDANCE_QUERY_KEYS.EMPLOYEES],
+      });
       toast({
+        variant: "success",
         title: "Attendance Recorded",
         description: "Attendance has been successfully recorded",
       });

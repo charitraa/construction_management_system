@@ -18,6 +18,7 @@ export const useDeleteExpense = () => {
       queryClient.invalidateQueries({ queryKey: [EXPENSE_QUERY_KEYS.LIST] });
       queryClient.invalidateQueries({ queryKey: [EXPENSE_QUERY_KEYS.STATS] });
       toast({
+        variant: "success",
         title: "Expense Deleted",
         description: "Expense has been successfully deleted",
       });

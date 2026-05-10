@@ -46,7 +46,7 @@ const navigationItems = [
   {
     title: "Payroll",
     href: "/payroll",
-    icon: DollarSign,
+    icon: User,
   },
   {
     title: "Projects",

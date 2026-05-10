@@ -20,6 +20,7 @@ export const useDeleteProject = () => {
       queryClient.invalidateQueries({ queryKey: [PROJECT_QUERY_KEYS.STATS] });
 
       toast({
+        variant: "success",
         title: "Project Deleted",
         description: "Project has been successfully deleted",
       });
