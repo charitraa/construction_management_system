@@ -76,6 +76,7 @@ export function Layout({ children }: LayoutProps) {
 
   const handleLogout = () => {
     logout();
+    window.location.reload();
     navigate("/login");
   };
 
