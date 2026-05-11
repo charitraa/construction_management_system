@@ -1,4 +1,4 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
+import axios from "axios";
 import { BASE_URL } from "../constants/constants";
 
 export const axiosInstance = axios.create({
@@ -21,11 +21,8 @@ export const axiosImageInstance = axios.create({
 });
 // Error handler
 export const handleAxiosError = (error: unknown): never => {
-  if (axios.isAxiosError(error)) {
-    const axiosError = error as AxiosError<{
-      message?: string;
-      status_code?: number;
-    }>;
+  if ((axios as any).isAxiosError(error)) {
+    const axiosError = error as any;
 
     if (!axiosError.response) {
       throw new Error("Network error. Please check your internet connection.");

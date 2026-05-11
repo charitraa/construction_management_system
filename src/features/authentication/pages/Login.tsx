@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, Variants } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Briefcase, AlertCircle, Loader2, Sparkles, CheckCircle2, Building2, Shield, Zap } from "lucide-react";
@@ -61,7 +61,7 @@ export default function Login() {
   };
 
   // Animation variants
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -72,7 +72,7 @@ export default function Login() {
     },
   };
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { y: 30, opacity: 0 },
     visible: {
       y: 0,
@@ -81,7 +81,7 @@ export default function Login() {
     },
   };
 
-  const cardVariants = {
+  const cardVariants: Variants = {
     hidden: { scale: 0.9, opacity: 0, y: 50 },
     visible: {
       scale: 1,
@@ -101,7 +101,7 @@ export default function Login() {
     },
   };
 
-  const iconVariants = {
+  const iconVariants: Variants = {
     initial: { rotate: 0, scale: 1 },
     animate: {
       rotate: [0, -10, 10, -10, 0],
@@ -115,7 +115,7 @@ export default function Login() {
     },
   };
 
-  const buttonVariants = {
+  const buttonVariants: Variants = {
     idle: { scale: 1 },
     hover: {
       scale: 1.03,
@@ -125,7 +125,7 @@ export default function Login() {
     tap: { scale: 0.98 },
   };
 
-  const errorVariants = {
+  const errorVariants: Variants = {
     hidden: { opacity: 0, x: -20, height: 0 },
     visible: {
       opacity: 1,
@@ -141,7 +141,7 @@ export default function Login() {
     },
   };
 
-  const loadingCircleVariants = {
+  const loadingCircleVariants: Variants = {
     spin: {
       rotate: 360,
       transition: { repeat: Infinity, duration: 1, ease: "linear" },
@@ -353,10 +353,9 @@ export default function Login() {
               </motion.div>
 
               <motion.div
-                variants={itemVariants}
+                variants={buttonVariants}
                 whileHover="hover"
                 whileTap="tap"
-                variants={buttonVariants}
                 initial="idle"
                 animate="idle"
                 onHoverStart={() => setIsHovered(true)}

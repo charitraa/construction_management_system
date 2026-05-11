@@ -30,7 +30,6 @@ dist-ssr
 /.npmrc
 .env/
 /.env
-/netlify.toml
 
 # NPM
 /CLAUDE.md
