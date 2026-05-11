@@ -118,7 +118,7 @@ export default function Payroll() {
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-1 h-6 bg-red-500 rounded-full" />
                 <span className="text-[10px] font-bold tracking-[.2em] uppercase text-red-600">
-                  Construction CMS
+                  Construction Management System
                 </span>
               </div>
               <h1 className="text-[2rem] font-extrabold text-slate-900 leading-tight tracking-tight">
@@ -152,7 +152,7 @@ export default function Payroll() {
             <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
               <BarChart3 className="w-4 h-4 text-slate-400" />
               <span className="text-sm font-semibold text-slate-700">
-                Payroll for {new Date(selectedDate).toLocaleDateString("en-US", { year: "numeric", month: "long" })}
+                Payroll for {new Date(selectedDate).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
                 {selectedDate === currentDateStr() && (
                   <span className="ml-2 text-xs text-slate-500 font-normal">
                     (Current Month)
@@ -169,7 +169,7 @@ export default function Payroll() {
                 Total Wages
               </p>
               <p className="text-2xl font-extrabold text-slate-900 mt-1.5 tabular-nums leading-none">
-                ₹{summary.total_wages.toLocaleString()}
+               Rs {Number(summary.total_wages).toLocaleString("en-IN")}
               </p>
               <p className="text-[11px] text-slate-400 mt-1">Gross earnings</p>
             </div>
@@ -178,7 +178,7 @@ export default function Payroll() {
                 Total Advances
               </p>
               <p className="text-2xl font-extrabold text-amber-600 mt-1.5 tabular-nums leading-none">
-                ₹{summary.total_advances.toLocaleString()}
+                Rs {Number(summary.total_advances).toLocaleString("en-IN")}
               </p>
               <p className="text-[11px] text-slate-400 mt-1">Deducted from pay</p>
             </div>
@@ -187,7 +187,7 @@ export default function Payroll() {
                 Net Pay
               </p>
               <p className="text-2xl font-extrabold text-emerald-600 mt-1.5 tabular-nums leading-none">
-                ₹{summary.total_net_pay.toLocaleString()}
+                Rs {Number(summary.total_net_pay).toLocaleString("en-IN")}
               </p>
               <p className="text-[11px] text-slate-400 mt-1">After deductions</p>
             </div>
@@ -269,14 +269,14 @@ export default function Payroll() {
                           {/* daily rate */}
                           <td className="px-5 py-4 text-right">
                             <span className="text-sm text-slate-600 tabular-nums">
-                              ₹{Number(entry.daily_rate).toLocaleString()}
+                              Rs {Number(entry.daily_rate).toLocaleString("en-IN")}
                             </span>
                           </td>
 
                           {/* total wage — field renamed */}
                           <td className="px-5 py-4 text-right">
                             <span className="text-sm font-semibold text-slate-800 tabular-nums">
-                              ₹{Number(entry.total_wage_earned).toLocaleString()}
+                              Rs {Number(entry.total_wage_earned).toLocaleString("en-IN")}
                             </span>
                           </td>
 
@@ -285,7 +285,7 @@ export default function Payroll() {
                             {Number(entry.advance) > 0 ? (
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-[11px] font-semibold text-amber-700 tabular-nums">
                                 <TrendingDown className="w-3 h-3" />
-                                ₹{Number(entry.advance).toLocaleString()}
+                                Rs {Number(entry.advance).toLocaleString("en-IN")}
                               </span>
                             ) : (
                               <span className="text-[11px] text-slate-400">—</span>
@@ -295,12 +295,12 @@ export default function Payroll() {
                           {/* net pay — handle negative */}
                           <td className="px-5 py-4 text-right">
                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold tabular-nums border
-          ${isNegativePay
+                              ${isNegativePay
                                 ? "bg-red-50 border-red-200 text-red-700"
                                 : "bg-emerald-50 border-emerald-200 text-emerald-700"
                               }`}>
                               <Wallet className="w-3 h-3" />
-                              {isNegativePay ? "-" : ""}₹{Math.abs(netPay).toLocaleString()}
+                              {isNegativePay ? "-" : ""}Rs {Math.abs(netPay).toLocaleString("en-IN")}
                             </span>
                           </td>
                           <td className="px-5 py-4 text-right">
@@ -331,7 +331,7 @@ export default function Payroll() {
                 <p className="text-[11px] text-slate-400">
                   Net total&nbsp;
                   <span className="font-bold text-emerald-600">
-                    ₹{summary.total_net_pay.toLocaleString()}
+                    Rs {Number(summary.total_net_pay).toLocaleString("en-IN")}
                   </span>
                 </p>
               </div>
@@ -403,12 +403,12 @@ export default function Payroll() {
                     },
                     {
                       label: "Total Wages",
-                      value: `₹${summary.total_wages.toLocaleString()}`,
+                      value: `Rs ${Number(summary.total_wages).toLocaleString("en-IN")}`,
                       color: "text-slate-800",
                     },
                     {
                       label: "Net Pay",
-                      value: `₹${summary.total_net_pay.toLocaleString()}`,
+                      value: `Rs ${Number(summary.total_net_pay).toLocaleString("en-IN")}`,
                       color: "text-emerald-700",
                     },
                   ].map((item) => (

@@ -18,8 +18,8 @@ import {
 
 
 const fmtINR = (n: number) =>
-  n >= 1e7 ? `₹${(n / 1e7).toFixed(2)}Cr`
-    : n >= 1e5 ? `₹${(n / 1e5).toFixed(1)}L`
+  n >= 1e7 ? `Rs ${(n / 1e7).toFixed(2)}Cr`
+    : n >= 1e5 ? `Rs ${(n / 1e5).toFixed(1)}L`
       : `Rs. ${Math.round(n).toLocaleString("en-IN")}`;
 
 /* ─────────────────────── status badge ─────────────────────── */
@@ -140,7 +140,7 @@ const RevenueFormBody = ({
       </div>
 
       <div>
-        <FieldLabel>Amount (₹)</FieldLabel>
+        <FieldLabel>Amount (Rs )</FieldLabel>
         <Input type="number" value={form.amount}
           onChange={e => { setForm({ ...form, amount: e.target.value }); clear("amount"); }}
           placeholder="e.g. 125000"
@@ -502,7 +502,7 @@ export default function Revenue() {
                           </td>
                           
                           <td className="px-5 py-3.5 text-right font-bold text-emerald-600 tabular-nums whitespace-nowrap">
-                            ₹{parseFloat(rev.amount).toLocaleString("en-IN")}
+                            Rs {parseFloat(rev.amount).toLocaleString("en-IN")}
                           </td>
                           <td className="px-5 py-3.5">
                             <div className="flex items-center justify-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -520,7 +520,7 @@ export default function Revenue() {
                           Page Total
                         </td>
                         <td className="px-5 py-3.5 text-right font-extrabold text-slate-900 tabular-nums">
-                          ₹{revenues.reduce((s: number, e: any) => s + parseFloat(e.amount), 0).toLocaleString("en-IN")}
+                          Rs {revenues.reduce((s: number, e: any) => s + parseFloat(e.amount), 0).toLocaleString("en-IN")}
                         </td>
                         <td />
                       </tr>
@@ -628,7 +628,7 @@ export default function Revenue() {
               <div className="bg-emerald-600 rounded-2xl p-5 text-center">
                 <p className="text-[10px] font-bold tracking-[.18em] uppercase text-emerald-100 mb-1">Amount</p>
                 <p className="text-4xl font-extrabold text-white tabular-nums">
-                  ₹{parseFloat(selectedData.data.amount).toLocaleString("en-IN")}
+                  Rs {parseFloat(selectedData.data.amount).toLocaleString("en-IN")}
                 </p>
                 {/* status + method badges below amount */}
                 <div className="flex items-center justify-center gap-2 mt-3">

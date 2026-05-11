@@ -34,7 +34,7 @@ type AdvanceForm = {
 
 /* ── small helpers ── */
 const fmt = (n: number) =>
-  "₹" + n.toLocaleString("en-IN", { maximumFractionDigits: 0 });
+  "Rs " + n.toLocaleString("en-IN", { maximumFractionDigits: 0 });
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -138,7 +138,7 @@ function AdvanceModal({
           </div>
 
           {/* notes */}
-          <div>
+          {/* <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">
               Notes <span className="text-slate-300 font-normal normal-case tracking-normal">(optional)</span>
             </label>
@@ -149,7 +149,7 @@ function AdvanceModal({
               rows={2}
               className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-400 transition-all resize-none"
             />
-          </div>
+          </div> */}
         </div>
 
         {/* modal footer */}
@@ -301,7 +301,7 @@ export default function Advance() {
               <div className="flex items-center gap-2 mb-1">
                 <span className="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-[.2em] uppercase text-slate-400">
                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
-                  Construction CMS
+                  Construction Managemenet System
                 </span>
               </div>
               <h1 className="text-[1.75rem] font-black text-slate-900 tracking-tight leading-none">
@@ -446,7 +446,6 @@ export default function Advance() {
                     <th className="px-5 py-3.5 text-left text-[10px] font-bold tracking-[.15em] uppercase text-slate-400">Employee</th>
                     <th className="px-5 py-3.5 text-left text-[10px] font-bold tracking-[.15em] uppercase text-slate-400">Date</th>
                     <th className="px-5 py-3.5 text-right text-[10px] font-bold tracking-[.15em] uppercase text-slate-400">Amount</th>
-                    <th className="px-5 py-3.5 text-left text-[10px] font-bold tracking-[.15em] uppercase text-slate-400">Notes</th>
                     <th className="px-5 py-3.5 text-center text-[10px] font-bold tracking-[.15em] uppercase text-slate-400">Actions</th>
                   </tr>
                 </thead>
@@ -477,10 +476,6 @@ export default function Advance() {
                         </span>
                       </td>
 
-                      {/* notes */}
-                      <td className="px-5 py-3.5 text-slate-400 text-[12px] max-w-[200px] truncate">
-                        {adv.notes || <span className="text-slate-300">—</span>}
-                      </td>
 
                       {/* actions */}
                       <td className="px-5 py-3.5">

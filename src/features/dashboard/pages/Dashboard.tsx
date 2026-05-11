@@ -28,9 +28,9 @@ import {
 
 const fmt = (val: number) => {
   const abs = Math.abs(val);
-  if (abs >= 100000) return `₹${(val / 100000).toFixed(2)}L`;
-  if (abs >= 1000) return `₹${(val / 1000).toFixed(1)}K`;
-  return `₹${val.toFixed(0)}`;
+  if (abs >= 100000) return `Rs ${(val / 100000).toFixed(2)}L`;
+  if (abs >= 1000) return `Rs ${(val / 1000).toFixed(1)}K`;
+  return `Rs ${val.toFixed(0)}`;
 };
 
 const TrendPill = ({ value, inverted = false }: { value: number; inverted?: boolean }) => {
@@ -121,7 +121,7 @@ export default function Dashboard() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <div className="w-1 h-6 bg-red-500 rounded-full" />
-              <span className="text-[10px] font-bold tracking-[.2em] uppercase text-red-600">Construction CMS</span>
+              <span className="text-[10px] font-bold tracking-[.2em] uppercase text-red-600">Construction Managemenet System</span>
             </div>
             <h1 className="text-[2rem] font-extrabold text-slate-900 leading-tight tracking-tight">Dashboard</h1>
             <p className="text-slate-400 text-sm mt-0.5">Financial overview and project summary</p>

@@ -46,9 +46,9 @@ const CategoryBadge = ({ category }: { category: string }) => {
 const ALL_CATEGORIES = ["Labor", "Materials", "Equipment", "Advance", "Other"];
 
 const fmtINR = (n: number) =>
-  n >= 1e7 ? `₹${(n / 1e7).toFixed(2)}Cr`
-    : n >= 1e5 ? `₹${(n / 1e5).toFixed(1)}L`
-      : `₹${Math.round(n).toLocaleString("en-IN")}`;
+  n >= 1e7 ? `Rs ${(n / 1e7).toFixed(2)}Cr`
+    : n >= 1e5 ? `Rs ${(n / 1e5).toFixed(1)}L`
+      : `Rs ${Math.round(n).toLocaleString("en-IN")}`;
 
 /* ─────────────────────── stat card ─────────────────────── */
 
@@ -118,7 +118,7 @@ const ExpenseFormBody = ({
           </select>
         </div>
         <div>
-          <FieldLabel>Amount (₹)</FieldLabel>
+          <FieldLabel>Amount (Rs )</FieldLabel>
           <Input type="number" value={form.amount}
             onChange={e => { setForm({ ...form, amount: e.target.value }); clear("amount"); }}
             placeholder="e.g. 45000"
@@ -288,7 +288,7 @@ export default function Expenses() {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-1 h-6 bg-red-500 rounded-full" />
-                <span className="text-[10px] font-bold tracking-[.2em] uppercase text-red-600">Construction CMS</span>
+                <span className="text-[10px] font-bold tracking-[.2em] uppercase text-red-600">Construction Management System</span>
               </div>
               <h1 className="text-[2rem] font-extrabold text-slate-900 leading-tight tracking-tight">Expenses</h1>
               <p className="text-slate-400 text-sm mt-0.5">Track and manage project expenditures</p>
@@ -380,7 +380,7 @@ export default function Expenses() {
                   className="pl-10 rounded-xl border-slate-200 focus-visible:ring-amber-300 w-full sm:w-44"
                 />
               </div>
-              <div className="flex items-center text-slate-300 text-sm px-1 hidden sm:flex">→</div>
+              <div className="flex items-center text-slate-300 text-sm px-1 sm:flex">→</div>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input type="date" value={dateRange.end}
@@ -464,7 +464,7 @@ export default function Expenses() {
                             {projects.find((p: any) => p.id === exp.project)?.name ?? exp.project ?? "—"}
                           </td>
                           <td className="px-5 py-3.5 text-right font-bold text-slate-900 tabular-nums whitespace-nowrap">
-                            ₹{parseFloat(exp.amount).toLocaleString("en-IN")}
+                            Rs {parseFloat(exp.amount).toLocaleString("en-IN")}
                           </td>
                           <td className="px-5 py-3.5">
                             <div className="flex items-center justify-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -482,7 +482,7 @@ export default function Expenses() {
                           Page Total
                         </td>
                         <td className="px-5 py-3.5 text-right font-extrabold text-slate-900 tabular-nums">
-                          ₹{expenses.reduce((s: number, e: any) => s + parseFloat(e.amount), 0).toLocaleString("en-IN")}
+                          Rs {expenses.reduce((s: number, e: any) => s + parseFloat(e.amount), 0).toLocaleString("en-IN")}
                         </td>
                         <td />
                       </tr>
@@ -590,7 +590,7 @@ export default function Expenses() {
               <div className="bg-slate-900 rounded-2xl p-5 text-center">
                 <p className="text-[10px] font-bold tracking-[.18em] uppercase text-slate-400 mb-1">Amount</p>
                 <p className="text-4xl font-extrabold text-white tabular-nums">
-                  ₹{parseFloat(selectedData.data.amount).toLocaleString("en-IN")}
+                  Rs {parseFloat(selectedData.data.amount).toLocaleString("en-IN")}
                 </p>
                 <div className="mt-3 flex justify-center">
                   <CategoryBadge category={selectedData.data.category} />

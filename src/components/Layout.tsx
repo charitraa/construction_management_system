@@ -128,19 +128,7 @@ export function Layout({ children }: LayoutProps) {
           </nav>
 
           {/* Footer */}
-          <div className="p-4 border-t border-gray-200">
-            <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-gray-50">
-              <div className="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center text-blue-600 font-semibold text-xs">
-                JD
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">
-                  John Doe
-                </p>
-                <p className="text-xs text-gray-500 truncate">Admin</p>
-              </div>
-            </div>
-          </div>
+          
         </div>
       </aside>
 

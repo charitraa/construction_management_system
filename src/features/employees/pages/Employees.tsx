@@ -183,7 +183,7 @@ export default function Employees() {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-1 h-6 bg-red-500 rounded-full" />
-                <span className="text-[10px] font-bold tracking-[.2em] uppercase text-red-600">Construction CMS</span>
+                <span className="text-[10px] font-bold tracking-[.2em] uppercase text-red-600">Construction Management System</span>
               </div>
               <h1 className="text-[2rem] font-extrabold text-slate-900 leading-tight tracking-tight">Employees</h1>
               <p className="text-slate-400 text-sm mt-0.5">Manage your workforce and team members</p>
@@ -323,7 +323,7 @@ export default function Employees() {
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-slate-400">Daily rate</span>
                         <span className="font-bold text-slate-800 tabular-nums">
-                          Rs. {parseFloat(employee.daily_rate).toFixed(2)}
+                          Rs. {parseFloat(employee.daily_rate).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5 text-xs text-slate-500">

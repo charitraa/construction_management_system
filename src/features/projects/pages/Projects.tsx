@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Plus, Edit2, Trash2, Search, Calendar, DollarSign,
-  Target, Clock, CheckCircle, AlertCircle, X,
+   Clock, CheckCircle, AlertCircle, X,
   ChevronLeft, ChevronRight, Building2, User, MapPin,
-  Download, TrendingUp, Layers
+  Download, Layers
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -41,8 +41,7 @@ const getProgress = (startDate: string) => {
 };
 
 const fmt = (n: number) =>
-  n >= 1e5 ? `₹${(n / 1e5).toFixed(1)}L` : `₹${n.toLocaleString("en-IN")}`;
-
+  n >= 1e5 ? `Rs ${(n / 1e5).toFixed(1)} Lakhs` : `Rs ${n.toLocaleString("en-IN")}`;
 /* ─────────────────────────────── stat card ─────────────────────────────── */
 
 interface StatCardProps {
@@ -81,7 +80,6 @@ export default function Projects() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
-  const navigate = useNavigate();
 
   // Validation errors
   const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
@@ -114,7 +112,6 @@ export default function Projects() {
   const projects = projectsData?.data ?? [];
   const stats = statsData?.data;
   const pagination = projectsData?.pagination;
-  const totalPages = pagination?.total_pages ?? 1;
 
   const [form, setForm] = useState({
     name: "", client_name: "", location: "", description: "",
@@ -197,11 +194,11 @@ export default function Projects() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
 
           {/* ── PAGE HEADER ── */}
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5"> 
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-1 h-6 bg-amber-500 rounded-full" />
-                <span className="text-xs font-bold tracking-[0.2em] uppercase text-amber-600">Construction CMS</span>
+                <span className="text-xs font-bold tracking-[0.2em] uppercase text-amber-600">Construction Management System</span>
               </div>
               <h1 className="text-[2rem] font-extrabold text-slate-900 leading-tight tracking-tight">Projects</h1>
               <p className="text-slate-400 text-sm mt-0.5">Track and manage all construction projects</p>
@@ -232,7 +229,7 @@ export default function Projects() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard label="Total" value={stats.total} icon={<Layers className="w-5 h-5" />} accent="bg-slate-100" iconColor="text-slate-600" sub="All projects" />
               <StatCard label="Ongoing" value={stats.ongoing} icon={<Clock className="w-5 h-5" />} accent="bg-sky-100" iconColor="text-sky-600" sub="In progress" />
-              <StatCard label="Completed" value={stats.by_status.completed} icon={<CheckCircle className="w-5 h-5" />} accent="bg-emerald-100" iconColor="text-emerald-600" sub="Delivered" />
+              <StatCard label="Completed" value={stats.by_status.completed ?? 0} icon={<CheckCircle className="w-5 h-5" />} accent="bg-emerald-100" iconColor="text-emerald-600" sub="Delivered" />
               <StatCard label="Delayed" value={stats.by_status.delayed ?? 0} icon={<AlertCircle className="w-5 h-5" />} accent="bg-rose-100" iconColor="text-rose-600" sub="Need attention" />
             </div>
           )}
@@ -376,7 +373,7 @@ export default function Projects() {
                         </div>
                         <div className="text-right">
                           <span className="text-base font-extrabold text-slate-900">{fmt(project.budget)}</span>
-                          <span className="text-[11px] text-slate-400 ml-1.5">₹{project.budget.toLocaleString("en-IN")}</span>
+                          <span className="text-[11px] text-slate-400 ml-1.5">Rs {Number(project.budget).toLocaleString("en-IN")}</span>
                         </div>
                       </div>
                     </div>
