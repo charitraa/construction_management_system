@@ -96,8 +96,8 @@ export function Layout({ children }: LayoutProps) {
                 <Briefcase className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-gray-900">BuildCMS</h1>
-                <p className="text-xs text-gray-500">Construction</p>
+                <h1 className="text-lg font-bold text-gray-900">CMS</h1>
+                <p className="text-xs text-gray-500">Construction Management</p>
               </div>
             </div>
           </div>
@@ -176,7 +176,7 @@ export function Layout({ children }: LayoutProps) {
               </div>
               <div className="hidden sm:flex flex-col items-start">
                 <p className="text-sm font-medium text-gray-900">{user?.full_name}</p>
-                <p className="text-xs text-gray-500 capitalize">"Admin</p>
+                <p className="text-xs text-gray-500 capitalize">{user?.full_name}</p>
               </div>
             </button>
 
