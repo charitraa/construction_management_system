@@ -8,6 +8,7 @@ import {
   Briefcase,
   TrendingUp,
   ReceiptText,
+  Wallet,
   Menu,
   X,
   LogOut,
@@ -62,6 +63,11 @@ const navigationItems = [
     title: "Revenue",
     href: "/revenue",
     icon: TrendingUp,
+  },
+  {
+    title: "Receivables",
+    href: "/receivables",
+    icon: Wallet,
   },
 ];
 

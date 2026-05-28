@@ -3,7 +3,6 @@ import {
   Plus,
   Trash2,
   Search,
-  Calendar as CalendarIcon,
   Wallet,
   Users,
   X,
@@ -15,6 +14,8 @@ import {
   Filter,
 } from "lucide-react";
 import { Layout } from "@/components/Layout";
+import { NepaliDatePicker } from "@/components/ui/nepali-date-picker";
+import { formatBsDate } from "@/lib/nepaliDate";
 import {
   useListAdvances,
   useCreateAdvance,
@@ -112,12 +113,10 @@ function AdvanceModal({
               <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">
                 Date <span className="text-rose-500">*</span>
               </label>
-              <input
-                type="date"
+              <NepaliDatePicker
                 value={formData.date}
                 max={new Date().toISOString().split("T")[0]}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-400 transition-all"
+                onChange={(v) => setFormData({ ...formData, date: v })}
               />
             </div>
             <div>
@@ -399,21 +398,28 @@ export default function Advance() {
                 </select>
 
                 {/* date range */}
-                <div className="flex items-center gap-2 border border-slate-200 rounded-lg px-3 py-2 bg-slate-50 focus-within:bg-white focus-within:ring-2 focus-within:ring-slate-300 transition-all">
-                  <CalendarIcon className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                  <input
-                    type="date"
-                    value={dateRange.start}
-                    onChange={(e) => { setDateRange({ ...dateRange, start: e.target.value }); setCurrentPage(1); }}
-                    className="text-sm bg-transparent focus:outline-none text-slate-700 w-[120px]"
-                  />
+                <div className="flex items-center gap-2">
+                  <div className="w-[150px]">
+                    <NepaliDatePicker
+                      value={dateRange.start}
+                      clearable
+                      placeholder="सुरु मिति"
+                      max={dateRange.end || undefined}
+                      onChange={(v) => { setDateRange({ ...dateRange, start: v }); setCurrentPage(1); }}
+                      className="rounded-lg py-2"
+                    />
+                  </div>
                   <span className="text-slate-300 text-xs">→</span>
-                  <input
-                    type="date"
-                    value={dateRange.end}
-                    onChange={(e) => { setDateRange({ ...dateRange, end: e.target.value }); setCurrentPage(1); }}
-                    className="text-sm bg-transparent focus:outline-none text-slate-700 w-[120px]"
-                  />
+                  <div className="w-[150px]">
+                    <NepaliDatePicker
+                      value={dateRange.end}
+                      clearable
+                      placeholder="अन्तिम मिति"
+                      min={dateRange.start || undefined}
+                      onChange={(v) => { setDateRange({ ...dateRange, end: v }); setCurrentPage(1); }}
+                      className="rounded-lg py-2"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -464,9 +470,7 @@ export default function Advance() {
 
                       {/* date */}
                       <td className="px-5 py-3.5 text-slate-500 text-[13px]">
-                        {new Date(adv.date).toLocaleDateString("en-US", {
-                          year: "numeric", month: "short", day: "numeric",
-                        })}
+                        {formatBsDate(adv.date)}
                       </td>
 
                       {/* amount */}

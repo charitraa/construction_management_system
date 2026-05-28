@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
 import {
-  Calendar,
   Download,
   ChevronLeft,
   ChevronRight,
@@ -17,6 +16,8 @@ import {
   UserCheck,
 } from "lucide-react";
 import { Layout } from "@/components/Layout";
+import { NepaliDatePicker } from "@/components/ui/nepali-date-picker";
+import { formatBsDate } from "@/lib/nepaliDate";
 import {
   useEmployeesWithAttendance,
   useDepartments,
@@ -35,12 +36,7 @@ import { useToast } from "@/hooks/use-toast";
 /* ─────────────────────── helpers ─────────────────────── */
 
 const formatDate = (dateStr: string) =>
-  new Date(dateStr).toLocaleDateString("en-US", {
-    weekday: "short",
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  formatBsDate(dateStr, { weekday: true });
 
 const isToday = (dateStr: string) =>
   dateStr === new Date().toISOString().split("T")[0];
@@ -267,9 +263,12 @@ export default function AttendancePage() {
                 <ChevronLeft className="w-4 h-4" />
               </button>
 
-              <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
-                <Calendar className="w-4 h-4 text-slate-400" />
-                <span className="text-sm font-semibold text-slate-700">{formatDate(selectedDate)}</span>
+              <div className="w-[200px]">
+                <NepaliDatePicker
+                  value={selectedDate}
+                  max={new Date().toISOString().split("T")[0]}
+                  onChange={(v) => v && setSelectedDate(v)}
+                />
               </div>
 
               <button
@@ -562,23 +561,19 @@ export default function AttendancePage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-[10px] text-slate-400 mb-1">Start</p>
-                    <input
-                      type="date"
+                    <NepaliDatePicker
                       value={exportStartDate}
-                      onChange={(e) => setExportStartDate(e.target.value)}
-                      max={exportEndDate}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                      onChange={(v) => setExportStartDate(v)}
+                      max={exportEndDate || undefined}
                     />
                   </div>
                   <div>
                     <p className="text-[10px] text-slate-400 mb-1">End</p>
-                    <input
-                      type="date"
+                    <NepaliDatePicker
                       value={exportEndDate}
-                      onChange={(e) => setExportEndDate(e.target.value)}
-                      min={exportStartDate}
+                      onChange={(v) => setExportEndDate(v)}
+                      min={exportStartDate || undefined}
                       max={new Date().toISOString().split("T")[0]}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
                     />
                   </div>
                 </div>

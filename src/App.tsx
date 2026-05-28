@@ -17,6 +17,7 @@ import Projects from "./features/projects/pages/Projects";
 import ProjectDetails from "./features/projects/pages/ProjectDetails";
 import Expenses from "./features/expenses/pages/Expenses";
 import Revenue from "./features/revenue/pages/Revenue";
+import Receivables from "./features/receivables/pages/Receivables";
 import NotFound from "./features/NotFound/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -103,6 +104,14 @@ export function App() {
                 element={
                   <ProtectedRoute>
                     <Revenue />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/receivables"
+                element={
+                  <ProtectedRoute>
+                    <Receivables />
                   </ProtectedRoute>
                 }
               />

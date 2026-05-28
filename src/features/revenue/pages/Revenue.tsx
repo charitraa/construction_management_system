@@ -2,6 +2,8 @@ import { useState, useMemo, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NepaliDatePicker } from "@/components/ui/nepali-date-picker";
+import { formatBsDate, formatBsDateTime } from "@/lib/nepaliDate";
 import {
   Plus, Search, Calendar, DollarSign, TrendingUp, Wallet,
   PieChart, X, ChevronLeft, ChevronRight, Building2,
@@ -178,9 +180,9 @@ const RevenueFormBody = ({
 
       <div>
         <FieldLabel>Date</FieldLabel>
-        <Input type="date" value={form.date}
-          onChange={e => setForm({ ...form, date: e.target.value })}
-          className="rounded-xl border-slate-200 focus-visible:ring-emerald-300"
+        <NepaliDatePicker value={form.date}
+          onChange={v => setForm({ ...form, date: v })}
+          className="focus:ring-emerald-300/50"
         />
       </div>
     </div>
@@ -406,19 +408,17 @@ export default function Revenue() {
 
             {/* date range */}
             <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input type="date" value={dateRange.start}
-                  onChange={e => { setDateRange({ ...dateRange, start: e.target.value }); setCurrentPage(1); }}
-                  className="pl-10 rounded-xl border-slate-200 focus-visible:ring-emerald-300 w-full sm:w-44"
+              <div className="w-full sm:w-48">
+                <NepaliDatePicker value={dateRange.start} clearable placeholder="सुरु मिति"
+                  max={dateRange.end || undefined}
+                  onChange={v => { setDateRange({ ...dateRange, start: v }); setCurrentPage(1); }}
                 />
               </div>
               <div className="items-center text-slate-300 text-sm px-1 hidden sm:flex">→</div>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input type="date" value={dateRange.end}
-                  onChange={e => { setDateRange({ ...dateRange, end: e.target.value }); setCurrentPage(1); }}
-                  className="pl-10 rounded-xl border-slate-200 focus-visible:ring-emerald-300 w-full sm:w-44"
+              <div className="w-full sm:w-48">
+                <NepaliDatePicker value={dateRange.end} clearable placeholder="अन्तिम मिति"
+                  min={dateRange.start || undefined}
+                  onChange={v => { setDateRange({ ...dateRange, end: v }); setCurrentPage(1); }}
                 />
               </div>
               {hasFilters && (
@@ -485,7 +485,7 @@ export default function Revenue() {
                           <td className="px-5 py-3.5 text-slate-500 whitespace-nowrap">
                             <div className="flex items-center gap-2">
                               <Calendar className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
-                              {new Date(rev.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                              {formatBsDate(rev.date)}
                             </div>
                           </td>
                           <td className="px-5 py-3.5 font-medium text-slate-800">
@@ -643,10 +643,10 @@ export default function Revenue() {
                 {[
                   { label: "Description", value: selectedData.data.description },
                   { label: "Client Name", value: selectedData.data.client_name ?? "—" },
-                  { label: "Date", value: new Date(selectedData.data.date).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) },
+                  { label: "Date", value: formatBsDate(selectedData.data.date) },
                   { label: "Project", value: projects.find((p: any) => p.id === selectedData.data.project)?.name ?? "—" },
-                  { label: "Created", value: new Date(selectedData.data.created_at).toLocaleString() },
-                  { label: "Updated", value: new Date(selectedData.data.updated_at).toLocaleString() },
+                  { label: "Created", value: formatBsDateTime(selectedData.data.created_at) },
+                  { label: "Updated", value: formatBsDateTime(selectedData.data.updated_at) },
                 ].map(({ label, value }) => (
                   <div key={label} className="flex items-start justify-between gap-4">
                     <span className="text-[11px] font-bold tracking-wide uppercase text-slate-400 flex-shrink-0">{label}</span>

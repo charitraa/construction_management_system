@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NepaliDatePicker } from "@/components/ui/nepali-date-picker";
+import { formatBsDate } from "@/lib/nepaliDate";
 import {
   Plus, Edit2, Trash2, Search, Calendar, DollarSign,
    Clock, CheckCircle, AlertCircle, X,
@@ -339,7 +341,7 @@ export default function Projects() {
                         {[
                           { icon: <User className="w-3.5 h-3.5" />, label: "Client", value: project.client_name },
                           { icon: <MapPin className="w-3.5 h-3.5" />, label: "Location", value: project.location },
-                          { icon: <Calendar className="w-3.5 h-3.5" />, label: "Started", value: new Date(project.start_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) },
+                          { icon: <Calendar className="w-3.5 h-3.5" />, label: "Started", value: formatBsDate(project.start_date) },
                         ].map(({ icon, label, value }) => (
                           <div key={label} className="flex items-center justify-between">
                             <div className="flex items-center gap-2 text-slate-400">
@@ -489,16 +491,15 @@ export default function Projects() {
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
                   Start Date <span className="text-rose-400">*</span>
                 </label>
-                <Input
-                  type="date"
+                <NepaliDatePicker
                   value={form.start_date}
-                  onChange={(e) => {
-                    setForm({ ...form, start_date: e.target.value });
+                  onChange={(v) => {
+                    setForm({ ...form, start_date: v });
                     if (formErrors.start_date) {
                       setFormErrors({ ...formErrors, start_date: "" });
                     }
                   }}
-                  className={`border-slate-200 rounded-xl focus-visible:ring-amber-300 ${formErrors.start_date ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}`}
+                  className={formErrors.start_date ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "focus:ring-amber-300/50"}
                 />
                 {formErrors.start_date && (
                   <p className="text-red-500 text-xs mt-1">{formErrors.start_date}</p>

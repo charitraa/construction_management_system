@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
+import { formatBsDate, formatBsDateTime } from "@/lib/nepaliDate";
 import {
   Calendar,
   DollarSign,
@@ -222,11 +223,7 @@ export default function ProjectDetails() {
                 <div>
                   <p className="text-sm text-gray-500">Start Date</p>
                   <p className="text-sm font-medium text-gray-900">
-                    {new Date(project.start_date).toLocaleDateString('en-US', {
-                      month: 'long',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
+                    {formatBsDate(project.start_date)}
                   </p>
                 </div>
               </div>
@@ -286,13 +283,13 @@ export default function ProjectDetails() {
             <div>
               <p className="text-sm text-gray-500">Created At</p>
               <p className="text-sm font-medium text-gray-900">
-                {new Date(project.created_at).toLocaleString()}
+                {formatBsDateTime(project.created_at)}
               </p>
             </div>
             <div>
               <p className="text-sm text-gray-500">Last Updated</p>
               <p className="text-sm font-medium text-gray-900">
-                {new Date(project.updated_at).toLocaleString()}
+                {formatBsDateTime(project.updated_at)}
               </p>
             </div>
           </div>

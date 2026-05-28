@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { Layout } from "@/components/Layout";
+import { formatBsDate, formatBsMonthYear } from "@/lib/nepaliDate";
 import {
   Download,
   FileSpreadsheet,
@@ -17,12 +18,7 @@ import { usePayrollMarkAsPaid } from "../hooks/usePayrollMarkAsPaid";
 /* ─────────────────────── helpers ─────────────────────── */
 
 const formatDate = (dateStr: string) =>
-  new Date(dateStr).toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  formatBsDate(dateStr, { weekday: true });
 
 const currentDateStr = () => new Date().toISOString().slice(0, 10);
 
@@ -128,12 +124,7 @@ export default function Payroll() {
                 Monthly wages, advances, and net pay overview
               </p>
               <p className="text-[11px] text-slate-500 font-medium mt-1">
-                Today: {new Date().toLocaleDateString("en-US", {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
+                Today: {formatDate(currentDateStr())}
               </p>
             </div>
             {payroll.length > 0 && (
@@ -152,7 +143,7 @@ export default function Payroll() {
             <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
               <BarChart3 className="w-4 h-4 text-slate-400" />
               <span className="text-sm font-semibold text-slate-700">
-                Payroll for {new Date(selectedDate).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+                Payroll for {formatBsDate(selectedDate)}
                 {selectedDate === currentDateStr() && (
                   <span className="ml-2 text-xs text-slate-500 font-normal">
                     (Current Month)
@@ -205,7 +196,7 @@ export default function Payroll() {
                   </p>
                 </div>
                 <span className="text-[11px] text-slate-400 font-medium">
-                  Payroll for {new Date(selectedDate).toLocaleDateString("en-US", { year: "numeric", month: "long" })}
+                  Payroll for {formatBsMonthYear(selectedDate)}
                 </span>
               </div>
 
@@ -345,7 +336,7 @@ export default function Payroll() {
                 No payroll data
               </h3>
               <p className="text-sm text-slate-400">
-                No payroll records found for {new Date(selectedDate).toLocaleDateString("en-US", { year: "numeric", month: "long" })}
+                No payroll records found for {formatBsMonthYear(selectedDate)}
               </p>
             </div>
           )}
@@ -372,7 +363,7 @@ export default function Payroll() {
                 <div>
                   <p className="text-sm font-bold text-slate-900">Export Payroll</p>
                   <p className="text-[11px] text-slate-400">
-                    Payroll for {new Date(selectedDate).toLocaleDateString("en-US", { year: "numeric", month: "long" })}
+                    Payroll for {formatBsMonthYear(selectedDate)}
                   </p>
                 </div>
               </div>

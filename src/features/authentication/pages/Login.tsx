@@ -265,7 +265,7 @@ export default function Login() {
           <motion.div
             variants={cardVariants}
             whileHover="hover"
-            className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-8 space-y-6 border border-white/30"
+            className="bg-white/95 rounded-3xl shadow-2xl p-8 space-y-6 border border-white/30"
           >
             {/* Header with Construction Badge */}
             <motion.div variants={itemVariants} className="space-y-2 text-center">
