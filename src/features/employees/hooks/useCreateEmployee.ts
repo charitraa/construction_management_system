@@ -6,7 +6,7 @@ import {
 } from "../types/employee.types";
 import { ApiErrorResponse } from "@/shared/types/http.types";
 import { EMPLOYEE_QUERY_KEYS } from "../constants/employee.constants";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/shared/hooks/use-toast";
 
 export const useCreateEmployee = () => {
   const queryClient = useQueryClient();

@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Layout } from "@/components/Layout";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { NepaliDatePicker } from "@/components/ui/nepali-date-picker";
-import { formatBsDate } from "@/lib/nepaliDate";
+import { Layout } from "@/shared/components/Layout";
+import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
+import { NepaliDatePicker } from "@/shared/components/ui/nepali-date-picker";
+import { formatBsDate } from "@/shared/lib/nepaliDate";
 import {
   Plus, Edit2, Trash2, Search, Calendar, DollarSign,
    Clock, CheckCircle, AlertCircle, X,
@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog";
+} from "@/shared/components/ui/dialog";
 import {
   useListProjects, useCreateProject, useUpdateProject,
   useDeleteProject, useProjectStats, useExportProjects,

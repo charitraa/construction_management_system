@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { expenseServices } from "../api/expenseServices";
 import { ApiErrorResponse } from "@/shared/types/http.types";
 import { EXPENSE_QUERY_KEYS } from "../constants/expense.constants";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/shared/hooks/use-toast";
 
 export const useDeleteExpense = () => {
   const queryClient = useQueryClient();

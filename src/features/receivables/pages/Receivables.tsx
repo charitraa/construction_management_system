@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Layout } from "@/components/Layout";
-import { Input } from "@/components/ui/input";
+import { Layout } from "@/shared/components/Layout";
+import { Input } from "@/shared/components/ui/input";
 import {
   Search, X, Wallet, TrendingUp, AlertCircle, Users, Building2,
 } from "lucide-react";

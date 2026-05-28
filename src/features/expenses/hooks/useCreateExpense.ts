@@ -6,7 +6,7 @@ import {
 } from "../types/expense.types";
 import { ApiErrorResponse } from "@/shared/types/http.types";
 import { EXPENSE_QUERY_KEYS } from "../constants/expense.constants";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/shared/hooks/use-toast";
 
 export const useCreateExpense = () => {
   const queryClient = useQueryClient();

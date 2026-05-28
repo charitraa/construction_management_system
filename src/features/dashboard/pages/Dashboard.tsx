@@ -1,5 +1,5 @@
-import { Layout } from "@/components/Layout";
-import { DashboardSkeleton } from "@/components/PageSkeleton";
+import { Layout } from "@/shared/components/Layout";
+import { DashboardSkeleton } from "@/shared/components/PageSkeleton";
 import { useDashboardOverview } from "../index";
 import {
   AreaChart,

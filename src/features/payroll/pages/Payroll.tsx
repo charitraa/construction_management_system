@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
-import { Layout } from "@/components/Layout";
-import { formatBsDate, formatBsMonthYear } from "@/lib/nepaliDate";
+import { Layout } from "@/shared/components/Layout";
+import { formatBsDate, formatBsMonthYear } from "@/shared/lib/nepaliDate";
 import {
   Download,
   FileSpreadsheet,

@@ -3,7 +3,7 @@ import { attendanceServices } from "../api/attendanceServices";
 import { DeleteAttendanceResponse } from "../types/attendance.types";
 import { ApiErrorResponse } from "@/shared/types/http.types";
 import { ATTENDANCE_QUERY_KEYS } from "../constants/attendance.constants";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/shared/hooks/use-toast";
 
 export const useDeleteAttendance = () => {
   const queryClient = useQueryClient();

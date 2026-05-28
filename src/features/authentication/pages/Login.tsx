@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence, Variants } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
 import { Briefcase, AlertCircle, Loader2, Sparkles, CheckCircle2, Building2, Shield, Zap } from "lucide-react";
 import { useLogin } from "../index";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/shared/context/AuthContext";
 
 // Background options - choose your preferred one
 const BACKGROUNDS = {

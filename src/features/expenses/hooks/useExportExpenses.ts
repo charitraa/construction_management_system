@@ -2,7 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { expenseServices } from "../api/expenseServices";
 import { ExportExpensesResponse } from "../types/expense.types";
 import { ApiErrorResponse } from "@/shared/types/http.types";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/shared/hooks/use-toast";
 
 export const useExportExpenses = () => {
   return useMutation<

@@ -6,7 +6,7 @@ import {
 } from "../types/revenue.types";
 import { ApiErrorResponse } from "@/shared/types/http.types";
 import { REVENUE_QUERY_KEYS } from "../constants/revenue.constants";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/shared/hooks/use-toast";
 
 export const useCreateRevenue = () => {
   const queryClient = useQueryClient();

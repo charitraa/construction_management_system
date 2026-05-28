@@ -6,7 +6,7 @@ import {
 } from "../types/project.types";
 import { ApiErrorResponse } from "@/shared/types/http.types";
 import { PROJECT_QUERY_KEYS } from "../constants/project.constants";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/shared/hooks/use-toast";
 
 export const useUpdateProject = () => {
   const queryClient = useQueryClient();

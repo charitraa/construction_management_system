@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { Layout } from "@/components/Layout";
-import { Button } from "@/components/ui/button";
-import { formatBsDate, formatBsDateTime } from "@/lib/nepaliDate";
+import { Layout } from "@/shared/components/Layout";
+import { Button } from "@/shared/components/ui/button";
+import { formatBsDate, formatBsDateTime } from "@/shared/lib/nepaliDate";
 import {
   Calendar,
   DollarSign,

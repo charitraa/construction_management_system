@@ -15,9 +15,9 @@ import {
   Search,
   UserCheck,
 } from "lucide-react";
-import { Layout } from "@/components/Layout";
-import { NepaliDatePicker } from "@/components/ui/nepali-date-picker";
-import { formatBsDate } from "@/lib/nepaliDate";
+import { Layout } from "@/shared/components/Layout";
+import { NepaliDatePicker } from "@/shared/components/ui/nepali-date-picker";
+import { formatBsDate } from "@/shared/lib/nepaliDate";
 import {
   useEmployeesWithAttendance,
   useDepartments,
@@ -31,7 +31,7 @@ import {
   EmployeeWithAttendance,
   AttendanceStatus,
 } from "../types/attendance.types";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/shared/hooks/use-toast";
 
 /* ─────────────────────── helpers ─────────────────────── */
 

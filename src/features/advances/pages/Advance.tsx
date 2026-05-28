@@ -13,9 +13,9 @@ import {
   ArrowUpRight,
   Filter,
 } from "lucide-react";
-import { Layout } from "@/components/Layout";
-import { NepaliDatePicker } from "@/components/ui/nepali-date-picker";
-import { formatBsDate } from "@/lib/nepaliDate";
+import { Layout } from "@/shared/components/Layout";
+import { NepaliDatePicker } from "@/shared/components/ui/nepali-date-picker";
+import { formatBsDate } from "@/shared/lib/nepaliDate";
 import {
   useListAdvances,
   useCreateAdvance,

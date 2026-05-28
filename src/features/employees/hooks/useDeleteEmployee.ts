@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { employeeServices } from "../api/employeeServices";
 import { ApiErrorResponse } from "@/shared/types/http.types";
 import { EMPLOYEE_QUERY_KEYS } from "../constants/employee.constants";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/shared/hooks/use-toast";
 
 export const useDeleteEmployee = () => {
   const queryClient = useQueryClient();

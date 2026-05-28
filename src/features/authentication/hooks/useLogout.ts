@@ -3,7 +3,7 @@ import { authServices } from "../api/authServices";
 import { LogoutResponse } from "../types/auth.types";
 import { ApiErrorResponse } from "@/shared/types/http.types";
 import { AUTH_QUERY_KEYS } from "../constants/auth.constants";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/shared/hooks/use-toast";
 
 export const useLogout = () => {
   return useMutation<LogoutResponse, ApiErrorResponse>({
