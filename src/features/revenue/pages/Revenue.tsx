@@ -489,7 +489,7 @@ export default function Revenue() {
                             </div>
                           </td>
                           <td className="px-5 py-3.5 font-medium text-slate-800">
-                            {rev.client_name || "—"}
+                            {projects.find((p: any) => p.id === rev.project)?.client_name ?? "—"}
                           </td>
                           <td className="px-5 py-3.5 text-slate-600 max-w-[180px] truncate">
                             {rev.description}

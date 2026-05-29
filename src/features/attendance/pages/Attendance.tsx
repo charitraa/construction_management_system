@@ -49,22 +49,22 @@ const isFutureDate = (dateStr: string) =>
 
 /* ─────────────────────── status badge ─────────────────────── */
 
+const STATUS_CONFIG: Record<AttendanceStatus, { badge: string; dot: string }> = {
+  "Full Day": { badge: "bg-emerald-50 text-emerald-800 border-emerald-200", dot: "bg-emerald-400" },
+  "Half Day": { badge: "bg-amber-50 text-amber-800 border-amber-200", dot: "bg-amber-400" },
+  Absent: { badge: "bg-rose-50 text-rose-800 border-rose-200", dot: "bg-rose-400" },
+};
+
 const StatusBadge = ({ status }: { status: AttendanceStatus | null }) => {
   if (!status)
     return <span className="text-[11px] text-slate-400 font-medium">Not marked</span>;
 
-  const isPresent = status === "Present";
+  const cfg = STATUS_CONFIG[status];
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border
-        ${isPresent
-          ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-          : "bg-rose-50 text-rose-800 border-rose-200"
-        }`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${cfg.badge}`}
     >
-      <span
-        className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isPresent ? "bg-emerald-400" : "bg-rose-400"}`}
-      />
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dot}`} />
       {status}
     </span>
   );
@@ -167,19 +167,23 @@ export default function AttendancePage() {
       toast({ variant: "destructive", title: "Cannot Mark", description: "Cannot mark attendance for future dates." });
       return;
     }
-    setEditingRecord({ employeeId, status: currentStatus || "Present" });
+    setEditingRecord({ employeeId, status: currentStatus || "Full Day" });
     setShowEditModal(true);
+  };
+
+  const markAttendance = (employeeId: string, status: AttendanceStatus) => {
+    const employee = employees.find((e: EmployeeWithAttendance) => e.id === employeeId);
+    if (!employee) return;
+    if (employee.record_id) {
+      updateAttendance.mutate({ attendanceId: employee.record_id, data: { status } });
+    } else {
+      createAttendance.mutate({ date: selectedDate, employee: employee.id, status });
+    }
   };
 
   const handleSaveAttendance = () => {
     if (!editingRecord) return;
-    const employee = employees.find((e: EmployeeWithAttendance) => e.id === editingRecord.employeeId);
-    if (!employee) return;
-    if (employee.record_id) {
-      updateAttendance.mutate({ attendanceId: employee.record_id, data: { status: editingRecord.status } });
-    } else {
-      createAttendance.mutate({ date: selectedDate, employee: employee.id, status: editingRecord.status });
-    }
+    markAttendance(editingRecord.employeeId, editingRecord.status);
     setShowEditModal(false);
     setEditingRecord(null);
   };
@@ -363,7 +367,8 @@ export default function AttendancePage() {
                 className="px-3 py-2 rounded-xl border border-slate-200 text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-300"
               >
                 <option value="all">All Status</option>
-                <option value="Present">Present</option>
+                <option value="Full Day">Full Day</option>
+                <option value="Half Day">Half Day</option>
                 <option value="Absent">Absent</option>
               </select>
               {hasFilters && (
@@ -392,7 +397,7 @@ export default function AttendancePage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
               {employees.map((employee: EmployeeWithAttendance) => {
                 const initials = employee.name.slice(0, 2).toUpperCase();
-                const isPresent = employee.status === "Present";
+                const isPresent = employee.status === "Full Day" || employee.status === "Half Day";
                 const isAbsent = employee.status === "Absent";
 
                 return (
@@ -428,41 +433,20 @@ export default function AttendancePage() {
                       {/* quick toggle buttons - only on today */}
                       {isCurrentToday && (
                         <div className="flex gap-2 pt-1">
-                          <button
-                            onClick={() => {
-                              setEditingRecord({ employeeId: employee.id, status: "Present" });
-                              const emp = employees.find((e: EmployeeWithAttendance) => e.id === employee.id);
-                              if (emp?.record_id) {
-                                updateAttendance.mutate({ attendanceId: emp.record_id, data: { status: "Present" } });
-                              } else {
-                                createAttendance.mutate({ date: selectedDate, employee: employee.id, status: "Present" });
-                              }
-                            }}
-                            className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all
-                              ${isPresent
-                                ? "bg-emerald-500 text-white"
-                                : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
-                              }`}
-                          >
-                            ✓ Present
-                          </button>
-                          <button
-                            onClick={() => {
-                              const emp = employees.find((e: EmployeeWithAttendance) => e.id === employee.id);
-                              if (emp?.record_id) {
-                                updateAttendance.mutate({ attendanceId: emp.record_id, data: { status: "Absent" } });
-                              } else {
-                                createAttendance.mutate({ date: selectedDate, employee: employee.id, status: "Absent" });
-                              }
-                            }}
-                            className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all
-                              ${isAbsent
-                                ? "bg-rose-500 text-white"
-                                : "bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200"
-                              }`}
-                          >
-                            ✗ Absent
-                          </button>
+                          {([
+                            { status: "Full Day", active: "bg-emerald-500 text-white", idle: "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200" },
+                            { status: "Half Day", active: "bg-amber-500 text-white", idle: "bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200" },
+                            { status: "Absent", active: "bg-rose-500 text-white", idle: "bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200" },
+                          ] as const).map((opt) => (
+                            <button
+                              key={opt.status}
+                              onClick={() => markAttendance(employee.id, opt.status)}
+                              className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all
+                                ${employee.status === opt.status ? opt.active : opt.idle}`}
+                            >
+                              {opt.status}
+                            </button>
+                          ))}
                         </div>
                       )}
                     </div>
@@ -493,22 +477,28 @@ export default function AttendancePage() {
             </p>
 
             <FieldLabel>Status</FieldLabel>
-            <div className="grid grid-cols-2 gap-3 mb-6">
-              {(["Present", "Absent"] as AttendanceStatus[]).map((status) => (
-                <button
-                  key={status}
-                  onClick={() => setEditingRecord({ ...editingRecord!, status })}
-                  className={`py-2.5 rounded-xl text-sm font-bold transition-all
-                    ${editingRecord?.status === status
-                      ? status === "Present"
-                        ? "bg-emerald-500 text-white shadow-md"
-                        : "bg-rose-500 text-white shadow-md"
-                      : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200"
-                    }`}
-                >
-                  {status}
-                </button>
-              ))}
+            <div className="grid grid-cols-3 gap-3 mb-6">
+              {(["Full Day", "Half Day", "Absent"] as AttendanceStatus[]).map((status) => {
+                const activeClass =
+                  status === "Absent"
+                    ? "bg-rose-500 text-white shadow-md"
+                    : status === "Half Day"
+                      ? "bg-amber-500 text-white shadow-md"
+                      : "bg-emerald-500 text-white shadow-md";
+                return (
+                  <button
+                    key={status}
+                    onClick={() => setEditingRecord({ ...editingRecord!, status })}
+                    className={`py-2.5 rounded-xl text-sm font-bold transition-all
+                      ${editingRecord?.status === status
+                        ? activeClass
+                        : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200"
+                      }`}
+                  >
+                    {status}
+                  </button>
+                );
+              })}
             </div>
 
             <div className="flex gap-3">

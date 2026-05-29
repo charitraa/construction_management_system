@@ -1,4 +1,4 @@
-export type AttendanceStatus = "Present" | "Absent";
+export type AttendanceStatus = "Full Day"| "Half Day" | "Absent";
 
 export interface Attendance {
   id: string;
