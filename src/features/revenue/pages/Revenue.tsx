@@ -134,9 +134,9 @@ const RevenueFormBody = ({
       <div>
         <FieldLabel>Client Name</FieldLabel>
         <Input value={form.client_name}
-          onChange={e => { setForm({ ...form, client_name: e.target.value }); clear("client_name"); }}
-          placeholder="client or company name"
-          className={`rounded-xl border-slate-200 focus-visible:ring-emerald-300 ${errors.client_name ? "border-rose-400" : ""}`}
+          readOnly
+          placeholder="Auto-filled from selected project"
+          className={`rounded-xl border-slate-200 bg-slate-50 text-slate-600 cursor-not-allowed focus-visible:ring-emerald-300 ${errors.client_name ? "border-rose-400" : ""}`}
         />
         <FieldError msg={errors.client_name} />
       </div>
@@ -170,7 +170,11 @@ const RevenueFormBody = ({
 
       <div>
         <FieldLabel>Project</FieldLabel>
-        <select value={form.project} onChange={e => { setForm({ ...form, project: e.target.value }); clear("project"); }}
+        <select value={form.project} onChange={e => {
+            const proj = projects.find((p: any) => p.id === e.target.value);
+            setForm({ ...form, project: e.target.value, client_name: proj?.client_name ?? "" });
+            clear("project"); clear("client_name");
+          }}
           className={`w-full px-3 py-2.5 border rounded-xl text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-300 ${errors.project ? "border-rose-400" : "border-slate-200"}`}>
           <option value="">— Select project —</option>
           {projects.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -292,7 +296,8 @@ export default function Revenue() {
   const handleDelete = (id: string) => deleteRevenue.mutate(id, { onSuccess: () => setShowDeleteConfirm(null) });
 
   const openAdd = () => {
-    setForm({ ...blankForm, project: projects[0]?.id ?? "" });
+    const first = projects[0];
+    setForm({ ...blankForm, project: first?.id ?? "", client_name: first?.client_name ?? "" });
     setFormErrors({});
     setOpenDialog(true);
   };
@@ -305,7 +310,7 @@ export default function Revenue() {
       amount: rev.amount,
       project: rev.project ?? "",
       date: rev.date,
-      client_name: rev.client_name ?? "",
+      client_name: projects.find((p: any) => p.id === rev.project)?.client_name ?? rev.client_name ?? "",
       pay_method: rev.pay_method ?? "Cash",
       status: rev.status ?? "Received",
     });
