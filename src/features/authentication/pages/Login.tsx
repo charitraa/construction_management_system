@@ -399,6 +399,14 @@ export default function Login() {
               </motion.div>
             </form>
 
+            {/* Sign up link */}
+            <motion.p variants={itemVariants} className="text-center text-sm text-gray-600">
+              Don't have an account?{" "}
+              <Link to="/register" className="font-semibold text-amber-600 hover:text-amber-700">
+                Sign up
+              </Link>
+            </motion.p>
+
 
             {/* Success Animation */}
             <AnimatePresence>

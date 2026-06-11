@@ -4,9 +4,10 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
+  full_name: string;
   email: string;
   password: string;
-  name: string;
+  confirm_password: string;
 }
 
 export interface RefreshTokenRequest {
@@ -36,7 +37,9 @@ export interface LoginResponse {
 }
 
 export interface RegisterResponse {
-  data: User;
+  data: AuthTokens & {
+    user: User;
+  };
   message: string;
 }
 
