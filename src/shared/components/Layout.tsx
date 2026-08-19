@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   BarChart3,
   Users,
@@ -76,14 +76,27 @@ export function Layout({ children }: LayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const location = useLocation();
-  const navigate = useNavigate();
   const { user } = useAuth();
-  const { mutate: logout } = useLogout();
+  const { mutateAsync: logout, isPending: isLoggingOut } = useLogout();
 
-  const handleLogout = () => {
-    logout();
-    window.location.reload();
-    navigate("/login");
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    setUserMenuOpen(false);
+
+    try {
+      // Must be awaited. Reloading straight after firing the mutation tore the
+      // page down before the server had answered, so the session cookie was
+      // never cleared and the reload landed back on a signed-in session.
+      await logout();
+    } catch {
+      // The hook has already cleared the local session and toasted the failure;
+      // still send the user to the login screen rather than stranding them.
+    }
+
+    // A full navigation (not navigate()) guarantees every provider, context and
+    // in-memory cache is rebuilt from scratch. replace() keeps the signed-in
+    // page out of history, so Back cannot return to it.
+    window.location.replace("/login");
   };
 
   return (
@@ -184,12 +197,13 @@ export function Layout({ children }: LayoutProps) {
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-gray-50 transition-colors text-red-600"
+                  disabled={isLoggingOut}
+                  className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-gray-50 transition-colors text-red-600 disabled:opacity-60 disabled:pointer-events-none"
                 >
                   <LogOut className="w-4 h-4" />
-                  <span className="text-sm font-medium" onClick={
-                    () => handleLogout()
-                  }>Logout</span>
+                  <span className="text-sm font-medium">
+                    {isLoggingOut ? "Logging out…" : "Logout"}
+                  </span>
                 </button>
               </div>
             )}
