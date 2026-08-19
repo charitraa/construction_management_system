@@ -1,5 +1,5 @@
 /** @import must precede all other statements */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400..900&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -122,5 +122,85 @@
   code {
     overflow-x: auto;
     white-space: pre;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Marketing surface (landing + auth screens)
+   Scoped utilities. Nothing here alters the application theme.
+   ────────────────────────────────────────────────────────────── */
+@layer utilities {
+  /* Drafting-paper grid: 8px minor rule, 48px major rule. */
+  .bp-grid {
+    background-image:
+      linear-gradient(to right, rgba(148, 163, 184, 0.16) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(148, 163, 184, 0.16) 1px, transparent 1px),
+      linear-gradient(to right, rgba(148, 163, 184, 0.07) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(148, 163, 184, 0.07) 1px, transparent 1px);
+    background-size: 48px 48px, 48px 48px, 8px 8px, 8px 8px;
+  }
+
+  .bp-grid-dark {
+    background-image:
+      linear-gradient(to right, rgba(148, 163, 184, 0.13) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(148, 163, 184, 0.13) 1px, transparent 1px),
+      linear-gradient(to right, rgba(148, 163, 184, 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
+    background-size: 56px 56px, 56px 56px, 8px 8px, 8px 8px;
+  }
+
+  /* Figures read as measurements: same width per digit, tightened. */
+  .num {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+
+  /* Drafting label: small, wide-tracked, uppercase. */
+  .label-micro {
+    font-size: 0.6875rem;
+    line-height: 1;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .display-tight {
+    letter-spacing: -0.035em;
+    line-height: 1.02;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Visible, consistent focus ring across marketing + auth. */
+  .marketing :where(a, button, input, select, [tabindex]):focus-visible {
+    outline: 2px solid #f59e0b;
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    .marketing *,
+    .marketing *::before,
+    .marketing *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
   }
 }
