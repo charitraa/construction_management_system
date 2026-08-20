@@ -1,0 +1,25 @@
+# Local build output (Vercel builds from source)
+dist
+dist-ssr
+node_modules
+tsconfig.tsbuildinfo
+
+# Container / other-host tooling not used by Vercel
+Dockerfile
+Dockerfile.dev
+.dockerignore
+docker-compose.yml
+docker-compose.dev.yml
+docker-compose.prod.yml
+nginx.conf
+nginx-proxy.conf
+healthcheck.sh
+Makefile
+netlify.toml
+
+# Local env & editor
+.env
+*.local
+.vscode
+.idea
+.claude
